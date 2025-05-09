@@ -10,5 +10,4 @@ PACKET_TYPE_FIELD_LENGTH = 1  # the length of the field type in bytes, 1 byte ==
 
 
 class PackageKind(enum.IntEnum):
-    CLIENT_SETUP = 0x01  # [Client incoming data port]
-    CLIENT_DISCONNECT = 0xFF
+    EXIT_KIND = 0xFF
