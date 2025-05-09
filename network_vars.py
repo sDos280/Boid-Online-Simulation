@@ -9,6 +9,6 @@ PACKET_SIZE_FIELD_LENGTH = 2  # the length of the field size in bytes, 2 bytes <
 PACKET_TYPE_FIELD_LENGTH = 1  # the length of the field type in bytes, 1 byte == 0xFF
 
 
-class PackageKind(enum.Enum):
+class PackageKind(enum.IntEnum):
     CLIENT_SETUP = 0x01  # [Client incoming data port]
     CLIENT_DISCONNECT = 0xFF
