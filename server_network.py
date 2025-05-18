@@ -40,7 +40,7 @@ def client_incoming_thread_handler(client_info: ClientCommunicationInfo):
                             all_incoming_packets.put(package)
 
                     case ProtocolStatusCodes.SOCKET_DISCONNECTED | ProtocolStatusCodes.SOCKET_CONNECTION_ERROR:
-                        print('Seems server disconnected abnormally')
+                        print('Seems client disconnected abnormally')
                         client_info.should_collapse = True
                         break
                     case _:
@@ -103,8 +103,13 @@ def client_communication_establish_server_thread(server_establish_socket: socket
             # create new random sockets for the incoming and outgoing communication
             binding_outgoing_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             binding_outgoing_socket.bind((SERVER_IP, 0))
+            binding_outgoing_socket.listen(1)
             binding_incoming_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             binding_incoming_socket.bind((SERVER_IP, 0))
+            binding_incoming_socket.listen(1)
+
+            print(f"Client {client_id}: Initialize port {binding_outgoing_socket.getsockname()[1]} for outgoing communication")
+            print(f"Client {client_id}: Initialize port {binding_incoming_socket.getsockname()[1]} for incoming communication")
 
             # send the port of the new sockets to the client
             Network.send_data(client_establish_socket,
@@ -117,6 +122,9 @@ def client_communication_establish_server_thread(server_establish_socket: socket
             outgoing_socket, address1 = binding_outgoing_socket.accept()
             incoming_socket, address2 = binding_incoming_socket.accept()
 
+            # add timeout to the incoming socket
+            incoming_socket.settimeout(2.0)
+
             client_info = ClientCommunicationInfo(outgoing_socket, incoming_socket, address, client_id)
 
             # add the client info to the list
@@ -126,11 +134,12 @@ def client_communication_establish_server_thread(server_establish_socket: socket
             threading.Thread(target=client_incoming_thread_handler, args=(client_info,)).start()
             threading.Thread(target=client_outgoing_thread_handler, args=(client_info,)).start()
 
-            client_info += 1
+            client_id += 1
 
-            client_establish_socket.close()
+            # client_establish_socket.close()
         except socket.error as err:
             print(f'Error: client_communication_establish_server_thread: {err}')
+            print(traceback.format_exc())
             shutdown = True
 
     server_establish_socket.close()

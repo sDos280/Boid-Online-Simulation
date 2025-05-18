@@ -159,10 +159,10 @@ class Network:
         if package.kind // 0xFF > NETWORK_PACKAGE_KIND_FIELD_SIZE:
             return ProtocolStatusCodes.MESSAGE_TOO_LARGE, f"The kind field is too large, len={package.kind // 0xFF}, value={package.kind}"
 
-        header = str(len(package.payload) + NETWORK_PACKAGE_LENGTH_FIELD_SIZE + NETWORK_PACKAGE_KIND_FIELD_SIZE).zfill(NETWORK_PACKAGE_LENGTH_FIELD_SIZE).encode()
+        header = (len(package.payload) + NETWORK_PACKAGE_LENGTH_FIELD_SIZE + NETWORK_PACKAGE_KIND_FIELD_SIZE).to_bytes(NETWORK_PACKAGE_LENGTH_FIELD_SIZE)
         header += package.kind.to_bytes(NETWORK_PACKAGE_KIND_FIELD_SIZE, byteorder='big')
 
-        bytearray_data = package.payload
+        bytearray_data = header + package.payload
 
         try:
             sock.send(bytearray_data)
@@ -211,7 +211,7 @@ class Network:
                     return ProtocolStatusCodes.SOCKET_DISCONNECTED, Package(PackageKind(0), "".encode()), all_bytes
 
                 try:
-                    length_field = int(length_field)
+                    length_field = int.from_bytes(length_field, byteorder='big')
                 except ValueError as err:
                     return ProtocolStatusCodes.NONE_INTEGER_LENGTH_FIELD, Package(PackageKind(0), f"{err}".encode()), all_bytes
 
@@ -221,7 +221,7 @@ class Network:
                 kind_field = sock.recv(NETWORK_PACKAGE_KIND_FIELD_SIZE)
                 all_bytes += kind_field
                 try:
-                    kind_field = int(kind_field)
+                    kind_field = int.from_bytes(kind_field, byteorder='big')
                 except ValueError as err:
                     return ProtocolStatusCodes.NONE_INTEGER_KIND_FIELD, Package(PackageKind(0), f"{err}".encode()), all_bytes
 
