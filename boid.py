@@ -130,18 +130,24 @@ class Boid:
 
         return steering_x, steering_y
 
-    def apply_force(self, fx: float, fy: float):
-        """Apply a force to the boid's velocity."""
+    def edge_avoidance(self, width: float, height: float) -> tuple[float, float]:
+        left = self.x
+        up = self.y
+        right = width - self.x
+        down = height - self.y
 
-        fx, fy = self.clamp_force(fx, fy)
+        scale = max(left, up, right, down)
 
-        self.vx += fx
-        self.vy += fy
+        if scale > 0:
+            steering_x = width / 2 - self.x
+            steering_y = height / 2 - self.y
+        else:
+            steering_x = 0
+            steering_y = 0
 
-        self.vx = max(min(self.vx, self.MAX_SPEED), -self.MAX_SPEED)
-        self.vy = max(min(self.vy, self.MAX_SPEED), -self.MAX_SPEED)
+        return steering_x, steering_y
 
-    def update(self, dt: float, boids: list['Boid']):
+    def update(self, dt: float, boids: list['Boid'], width: float = 800, height: float = 450):
         for boid in boids:
             if boid is self:
                 continue
@@ -150,6 +156,13 @@ class Boid:
 
             fx, fy = 0.0, 0.0
 
+            # add edge avoidance
+            edge_avoidance_x, edge_avoidance_y = self.edge_avoidance(width, height)
+
+            fx += edge_avoidance_x
+            fy += edge_avoidance_y
+
+            # add boid forces
             if dist < self.PERCEPTION_RADIUS:
                 afx, afy = self.alignment(boids)
                 cfx, cfy = self.cohesion(boids)
@@ -189,15 +202,3 @@ class Boid:
         # update position
         self.x += self.vx * dt
         self.y += self.vy * dt
-
-    @staticmethod
-    def clamp_force(force_x: float, force_y: float) -> tuple[float, float]:
-        """Clamp the force to a maximum value."""
-        double_magnitude = (force_x ** 2 + force_y ** 2)
-
-        if double_magnitude > Boid.MAX_FORCE ** 2:
-            scale = (Boid.MAX_FORCE / (double_magnitude ** 0.5))
-            force_x *= scale
-            force_y *= scale
-
-        return force_x, force_y
