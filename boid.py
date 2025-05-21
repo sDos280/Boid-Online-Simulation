@@ -152,8 +152,8 @@ class Boid:
         return steering_x, steering_y
 
     def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float):
-        boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance(boid) < self.PERCEPTION_RADIUS]
-        boids_in_avoidance_range = [boid for boid in boids_in_perception_range if boid is not self and self.get_distance(boid) < self.AVOID_RADIUS]
+        boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance_squared(boid) < self.PERCEPTION_RADIUS * self.PERCEPTION_RADIUS]
+        boids_in_avoidance_range = [boid for boid in boids_in_perception_range if boid is not self and self.get_distance_squared(boid) < self.AVOID_RADIUS * self.AVOID_RADIUS]
 
         # add edge avoidance
         edge_avoidance_x, edge_avoidance_y = self.edge_avoidance(min_x, min_y, max_x, max_y)
