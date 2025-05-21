@@ -34,6 +34,8 @@ def main():
         for boid in boids:
             draw_circle(int(boid.x), int(boid.y), 5, BLUE)
 
+        draw_fps(10, 10)
+
         end_drawing()
 
     close_window()

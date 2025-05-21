@@ -32,8 +32,8 @@ def from_polar(r: float, theta: float) -> tuple[float, float]:
 # https://github.com/meznak/boids_py/blob/master/boid.py
 
 class Boid:
-    MIN_SPEED = 40
-    MAX_SPEED = 60
+    MIN_SPEED = 60
+    MAX_SPEED = 100
     MAX_FORCE = 100
     MAX_TURN = 5
     PERCEPTION_RADIUS = 50
@@ -43,7 +43,8 @@ class Boid:
     EDGE_DISTANCE_PCT = 5
     SEPARATION = 1
     ALIGNMENT = 1 / 2
-    COHESION = 1 / 100
+    COHESION = 1 / 50
+    EDGE_AVOIDANCE = 1
 
     def __init__(self, x: float, y: float, vx: float, vy: float):
         self.x: float = x  # x position
@@ -149,11 +150,11 @@ class Boid:
             steering_x = 0.0
             steering_y = 0.0
 
-        return steering_x, steering_y
+        return steering_x * Boid.EDGE_AVOIDANCE, steering_y * Boid.EDGE_AVOIDANCE
 
     def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float):
-        boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance_squared(boid) < self.PERCEPTION_RADIUS * self.PERCEPTION_RADIUS]
-        boids_in_avoidance_range = [boid for boid in boids_in_perception_range if boid is not self and self.get_distance_squared(boid) < self.AVOID_RADIUS * self.AVOID_RADIUS]
+        boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance_squared(boid) < Boid.PERCEPTION_RADIUS * Boid.PERCEPTION_RADIUS]
+        boids_in_avoidance_range = [boid for boid in boids_in_perception_range if boid is not self and self.get_distance_squared(boid) < Boid.AVOID_RADIUS * Boid.AVOID_RADIUS]
 
         # add edge avoidance
         edge_avoidance_x, edge_avoidance_y = self.edge_avoidance(min_x, min_y, max_x, max_y)
@@ -174,22 +175,22 @@ class Boid:
 
         heading_diff = 180 - (180 - new_heading + old_heading) % 360
 
-        if heading_diff > self.MAX_TURN:
-            if heading_diff > self.MAX_TURN:
-                new_heading = old_heading + self.MAX_TURN
+        if heading_diff > Boid.MAX_TURN:
+            if heading_diff > Boid.MAX_TURN:
+                new_heading = old_heading + Boid.MAX_TURN
             else:
-                new_heading = old_heading - self.MAX_TURN
+                new_heading = old_heading - Boid.MAX_TURN
 
         self.vx, self.vy = from_polar(speed, new_heading)
 
         # enforce speed limit
         speed, _ = to_polar(self.vx, self.vy)
-        if speed > self.MAX_SPEED:
-            scale = self.MAX_SPEED / speed
+        if speed > Boid.MAX_SPEED:
+            scale = Boid.MAX_SPEED / speed
             self.vx *= scale
             self.vy *= scale
-        elif speed < self.MIN_SPEED:
-            scale = self.MIN_SPEED / speed
+        elif speed < Boid.MIN_SPEED:
+            scale = Boid.MIN_SPEED / speed
             self.vx *= scale
             self.vy *= scale
 
