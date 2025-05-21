@@ -61,9 +61,13 @@ class Boid:
         x, y, vx, vy = struct.unpack('!ffff', data)
         return cls(x, y, vx, vy)
 
+    def get_distance_squared(self, boid: 'Boid') -> float:
+        """Calculate the squared distance to another boid."""
+        return (self.x - boid.x) ** 2 + (self.y - boid.y) ** 2
+
     def get_distance(self, boid: 'Boid') -> float:
         """Calculate the distance to another boid."""
-        return ((self.x - boid.x) ** 2 + (self.y - boid.y) ** 2) ** 0.5
+        return math.sqrt(self.get_distance_squared(boid))
 
     def separation(self, boids: list['Boid']) -> tuple[float, float]:
         """Calculate the separation force from other boids. all boids should be inside the avoid radius."""
