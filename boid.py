@@ -32,17 +32,17 @@ def from_polar(r: float, theta: float) -> tuple[float, float]:
 # https://github.com/meznak/boids_py/blob/master/boid.py
 
 class Boid:
-    MIN_SPEED = .01
-    MAX_SPEED = 40
+    MIN_SPEED = 40
+    MAX_SPEED = 60
     MAX_FORCE = 100
     MAX_TURN = 5
-    PERCEPTION_RADIUS = 30
-    AVOID_RADIUS = 10
+    PERCEPTION_RADIUS = 50
+    AVOID_RADIUS = 20
     CROWDING = 15
     CAN_WRAP = False
     EDGE_DISTANCE_PCT = 5
     SEPARATION = 1
-    ALIGNMENT = 1 / 8
+    ALIGNMENT = 1 / 2
     COHESION = 1 / 100
 
     def __init__(self, x: float, y: float, vx: float, vy: float):
@@ -130,74 +130,64 @@ class Boid:
 
         return steering_x, steering_y
 
-    def edge_avoidance(self, width: float, height: float) -> tuple[float, float]:
-        left = self.x
-        up = self.y
-        right = width - self.x
-        down = height - self.y
+    def edge_avoidance(self, min_x: float, min_y: float, max_x: float, max_y: float) -> tuple[float, float]:
+        left = self.x - min_x
+        up = self.y - min_y
+        right = max_x - self.x
+        down = max_y - self.y
 
-        scale = max(left, up, right, down)
+        scale = min(left, up, right, down)
 
-        if scale > 0:
-            steering_x = width / 2 - self.x
-            steering_y = height / 2 - self.y
+        if scale < 0.0:
+            steering_x = (max_x - min_x) / 2 - self.x
+            steering_y = (max_y - min_y) / 2 - self.y
         else:
-            steering_x = 0
-            steering_y = 0
+            steering_x = 0.0
+            steering_y = 0.0
 
         return steering_x, steering_y
 
-    def update(self, dt: float, boids: list['Boid'], width: float = 800, height: float = 450):
-        for boid in boids:
-            if boid is self:
-                continue
+    def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float):
+        boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance(boid) < self.PERCEPTION_RADIUS]
+        boids_in_avoidance_range = [boid for boid in boids_in_perception_range if boid is not self and self.get_distance(boid) < self.AVOID_RADIUS]
 
-            dist = self.get_distance(boid)
+        # add edge avoidance
+        edge_avoidance_x, edge_avoidance_y = self.edge_avoidance(min_x, min_y, max_x, max_y)
 
-            fx, fy = 0.0, 0.0
+        # add boid forces
+        afx, afy = self.alignment(boids_in_perception_range)
+        cfx, cfy = self.cohesion(boids_in_perception_range)
+        sfx, sfy = self.separation(boids_in_avoidance_range)
 
-            # add edge avoidance
-            edge_avoidance_x, edge_avoidance_y = self.edge_avoidance(width, height)
+        fx = edge_avoidance_x + afx + cfx + sfx
+        fy = edge_avoidance_y + afy + cfy + sfy
 
-            fx += edge_avoidance_x
-            fy += edge_avoidance_y
+        # enforce turn limit
+        _, old_heading = to_polar(self.vx, self.vy)
+        new_velocity_x = self.vx + fx * dt
+        new_velocity_y = self.vy + fy * dt
+        speed, new_heading = to_polar(new_velocity_x, new_velocity_y)
 
-            # add boid forces
-            if dist < self.PERCEPTION_RADIUS:
-                afx, afy = self.alignment(boids)
-                cfx, cfy = self.cohesion(boids)
+        heading_diff = 180 - (180 - new_heading + old_heading) % 360
 
-                fx = afx + cfx
-                fy = afy + cfy
-
-                if dist < self.AVOID_RADIUS:
-                    sfx, sfy = self.separation(boids)
-
-                    fx += sfx
-                    fy += sfy
-
-            # enforce turn limit
-            _, old_heading = to_polar(self.vx, self.vy)
-            new_velocity_x = self.vx + fx * dt
-            new_velocity_y = self.vy + fy * dt
-            speed, new_heading = to_polar(new_velocity_x, new_velocity_y)
-
-            heading_diff = 180 - (180 - new_heading + old_heading) % 360
-
+        if heading_diff > self.MAX_TURN:
             if heading_diff > self.MAX_TURN:
-                if heading_diff > self.MAX_TURN:
-                    new_heading = old_heading + self.MAX_TURN
-                else:
-                    new_heading = old_heading - self.MAX_TURN
+                new_heading = old_heading + self.MAX_TURN
+            else:
+                new_heading = old_heading - self.MAX_TURN
 
-            self.vx, self.vy = from_polar(speed, new_heading)
+        self.vx, self.vy = from_polar(speed, new_heading)
 
-            # enforce speed limit
-            speed, _ = to_polar(self.vx, self.vy)
-            if speed > self.MAX_SPEED:
-                scale = self.MAX_SPEED / speed
-                self.vx *= scale
-                self.vy *= scale
+        # enforce speed limit
+        speed, _ = to_polar(self.vx, self.vy)
+        if speed > self.MAX_SPEED:
+            scale = self.MAX_SPEED / speed
+            self.vx *= scale
+            self.vy *= scale
+        elif speed < self.MIN_SPEED:
+            scale = self.MIN_SPEED / speed
+            self.vx *= scale
+            self.vy *= scale
 
         # update position
         self.x += self.vx * dt
