@@ -170,6 +170,11 @@ def setup_server_variables(all_incoming_packets: queue.Queue, all_client_infos: 
     __all_client_infos = all_client_infos
 
 
+def set_shutdown(shutdown_value: bool):
+    global shutdown
+    shutdown = shutdown_value
+
+
 if __name__ == '__main__':
     setup_server_variables(queue.Queue(), [])
     server_establish_socket = server_establish_connection()
