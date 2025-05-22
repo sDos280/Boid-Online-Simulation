@@ -53,8 +53,6 @@ def client_incoming_thread_handler(client_info: ClientCommunicationInfo):
                         client_info.should_terminate = True
                         break
 
-            time.sleep(1 / 10)
-
     except socket.error as err:
         logger.fatal(f'Got socket error: {err}')
         client_info.should_terminate = True
@@ -73,14 +71,14 @@ def client_outgoing_thread_handler(client_info: ClientCommunicationInfo):
 
     try:
         while not client_info.should_terminate and not shutdown:
-            if not client_info.outgoing_queue.empty():
+            while not client_info.outgoing_queue.empty():
                 package = client_info.outgoing_queue.get()
 
                 Network.send_data(client_info.outgoing_socket, package)
 
                 client_info.outgoing_queue.task_done()
 
-            time.sleep(1 / 10)
+            time.sleep(1 / 100)
 
     except socket.error as err:
         logger.fatal(f'Got socket error: {err}')
