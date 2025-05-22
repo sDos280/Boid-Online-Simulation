@@ -3,6 +3,8 @@ import socket
 import time
 import traceback
 import threading
+
+import boid
 from network_vars import *
 from network import Network, Package, ProtocolStatusCodes, PackageKind
 import logging
@@ -21,14 +23,14 @@ class ClientCommunicationInfo:
         self.outgoing_socket = outgoing_socket
         self.incoming_socket = incoming_socket
         self.client_address = client_address
-        self.incoming_queue = queue.Queue()  # EXAMINE: this may not be needed
-        self.outgoing_queue = queue.Queue()
+        self.incoming_queue: queue.Queue[Package] = queue.Queue()  # EXAMINE: this may not be needed
+        self.outgoing_queue: queue.Queue[Package] = queue.Queue()
         self.client_id = client_id
         self.should_terminate = False
 
 
 def client_incoming_thread_handler(client_info: ClientCommunicationInfo):
-    print(f"Started incoming thread handler for {client_info.client_id}!")
+    logger.info(f"Started incoming thread handler for {client_info.client_id}!")
 
     try:
         while not client_info.should_terminate and not shutdown:
@@ -43,52 +45,52 @@ def client_incoming_thread_handler(client_info: ClientCommunicationInfo):
                             __all_incoming_packets.put(package)
 
                     case ProtocolStatusCodes.SOCKET_DISCONNECTED | ProtocolStatusCodes.SOCKET_CONNECTION_ERROR:
-                        print('Seems client disconnected abnormally')
-                        client_info.should_collapse = True
+                        logger.error('Seems client disconnected abnormally')
+                        client_info.should_terminate = True
                         break
                     case _:
-                        print(f'Something went wrong: {status} : {PackageKind(package.kind).name} : {package.payload}')
-                        client_info.should_collapse = True
+                        logger.error(f'Something went wrong: {status} : {PackageKind(package.kind).name} : {package.payload}')
+                        client_info.should_terminate = True
                         break
 
             time.sleep(1 / 10)
 
     except socket.error as err:
-        print(f'Got socket error: {err}')
+        logger.fatal(f'Got socket error: {err}')
         client_info.should_terminate = True
     except Exception as err:
-        print(f'General error: {err}')
-        print(traceback.format_exc())
+        logger.fatal(f'General error: {err}')
+        logger.fatal(traceback.format_exc())
         client_info.should_terminate = True
 
-    print(f"Ended incoming thread handler for {client_info.client_id}!")
+    logger.info(f"Ended incoming thread handler for {client_info.client_id}!")
 
     client_info.incoming_socket.close()
 
 
 def client_outgoing_thread_handler(client_info: ClientCommunicationInfo):
-    print(f"Started outgoing thread handler for {client_info.client_id}!")
+    logger.info(f"Started outgoing thread handler for {client_info.client_id}!")
 
     try:
         while not client_info.should_terminate and not shutdown:
             if not client_info.outgoing_queue.empty():
-                kind, data = client_info.outgoing_queue.get()
+                package = client_info.outgoing_queue.get()
 
-                Network.send_data(client_info.outgoing_socket, kind, data)
+                Network.send_data(client_info.outgoing_socket, package)
 
                 client_info.outgoing_queue.task_done()
 
             time.sleep(1 / 10)
 
     except socket.error as err:
-        print(f'Got socket error: {err}')
+        logger.fatal(f'Got socket error: {err}')
         client_info.should_terminate = True
     except Exception as err:
-        print(f'General error: {err}')
-        print(traceback.format_exc())
+        logger.fatal(f'General error: {err}')
+        logger.fatal(traceback.format_exc())
         client_info.should_terminate = True
 
-    print(f"Ended outgoing thread handler for {client_info.client_id}!")
+    logger.info(f"Ended outgoing thread handler for {client_info.client_id}!")
 
     client_info.outgoing_socket.close()
 
@@ -97,7 +99,7 @@ def client_outgoing_thread_handler(client_info: ClientCommunicationInfo):
 def client_communication_establish_server_thread(server_establish_socket: socket.socket):
     global shutdown
 
-    print('Client\'s communication establish server started!')
+    logger.info('Client\'s communication establish server started!')
 
     client_id = 0
 
@@ -105,7 +107,7 @@ def client_communication_establish_server_thread(server_establish_socket: socket
         try:
             client_establish_socket, address = server_establish_socket.accept()
 
-            print(f'Client connected from {address}')
+            logger.info(f'Client connected from {address}')
 
             # create new random sockets for the incoming and outgoing communication
             binding_outgoing_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -115,8 +117,8 @@ def client_communication_establish_server_thread(server_establish_socket: socket
             binding_incoming_socket.bind((SERVER_IP, 0))
             binding_incoming_socket.listen(1)
 
-            print(f"Client {client_id}: Initialize port {binding_outgoing_socket.getsockname()[1]} for outgoing communication")
-            print(f"Client {client_id}: Initialize port {binding_incoming_socket.getsockname()[1]} for incoming communication")
+            logger.info(f"Client {client_id}: Initialize port {binding_outgoing_socket.getsockname()[1]} for outgoing communication")
+            logger.info(f"Client {client_id}: Initialize port {binding_incoming_socket.getsockname()[1]} for incoming communication")
 
             # send the port of the new sockets to the client
             Network.send_data(client_establish_socket,
@@ -145,8 +147,8 @@ def client_communication_establish_server_thread(server_establish_socket: socket
 
             # client_establish_socket.close()
         except socket.error as err:
-            print(f'Error: client_communication_establish_server_thread: {err}')
-            print(traceback.format_exc())
+            logger.fatal(f'Error: client_communication_establish_server_thread: {err}')
+            logger.fatal(traceback.format_exc())
             shutdown = True
 
     server_establish_socket.close()

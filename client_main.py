@@ -2,7 +2,7 @@ import threading
 import logging
 import queue
 from raylibpy import *
-from boid_helper import get_triangle_points
+from boid_helper import get_triangle_points, deserialize_boids
 from network import Package, PackageKind
 from boid import Boid
 from client_network import communicating_setup, setup_client_variables, set_shutdown, setup_incoming_packets_thread, setup_outgoing_packets_thread
@@ -52,7 +52,9 @@ if __name__ == '__main__':
 
     set_target_fps(60)
 
+    last = b""
     boids: list[Boid] = []
+    new_boids: list[Boid] = []
 
     while not window_should_close():
         # Update
@@ -61,6 +63,7 @@ if __name__ == '__main__':
             packet = incoming_packets.get()
             # Process the packet
 
+            print(packet.payload)
             match packet.kind:
                 case PackageKind.BOIDS_STATE:
                     # Update boids state
@@ -70,6 +73,8 @@ if __name__ == '__main__':
                     logger.error(f"Error packet received: {packet.payload.decode('utf-8')}")
                 case _:
                     logger.warning(f"Unknown packet kind received: {packet.kind.name}")
+
+            incoming_packets.task_done()
 
         for boid in boids:
             boid.update(get_frame_time(), boids, 10, 10, 800 - 10, 450 - 10)

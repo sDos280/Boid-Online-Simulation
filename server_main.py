@@ -3,6 +3,7 @@ import logging
 from raylibpy import *
 from boid_helper import generate_boids, get_triangle_points, serialize_boids
 from server_network import ClientCommunicationInfo, setup_server_variables, server_establish_connection, set_shutdown
+from network import Package, PackageKind
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ if __name__ == '__main__':
         # send all the clients their packets
         for client_info in all_client_infos:
             if not client_info.should_terminate:
-                client_info.outgoing_queue.put(all_incoming_packets.get())
+                client_info.outgoing_queue.put(Package(PackageKind.BOIDS_STATE, serialize_boids(boids)))
 
         for boid in boids:
             boid.update(get_frame_time(), boids, 10, 10, 800 - 10, 450 - 10)

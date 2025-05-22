@@ -24,7 +24,7 @@ def setup_incoming_packets_thread(incoming_socket):
     global __shutdown
 
     while not __shutdown:
-        temp = Network.receive_data(incoming_socket)
+        temp = Network.receive_data(incoming_socket, log=False)
 
         if temp is not None:  # temp is None on timeout
             status, package = temp
@@ -57,7 +57,7 @@ def setup_outgoing_packets_thread(outgoing_socket):
         if not __outgoing_packets.empty():
             kind, data = __outgoing_packets.get()
 
-            Network.send_data(outgoing_socket, kind, data)
+            Network.send_data(outgoing_socket, kind, data, log=True)
 
             __outgoing_packets.task_done()
 
