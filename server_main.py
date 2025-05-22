@@ -1,8 +1,8 @@
 import queue
 import logging
 from raylibpy import *
-from boid_helper import generate_boids, get_triangle_points
-from server_network import setup_server_variables, server_establish_connection, set_shutdown
+from boid_helper import generate_boids, get_triangle_points, serialize_boids
+from server_network import ClientCommunicationInfo, setup_server_variables, server_establish_connection, set_shutdown
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +10,7 @@ all_incoming_packets = queue.Queue()  # a queue for all incoming packets
 
 shutdown = False  # a flag to indicate if the server should shut down
 
-all_client_infos = []  # a list to store all client information
+all_client_infos: list[ClientCommunicationInfo] = []  # a list to store all client information
 
 if __name__ == '__main__':
     setup_server_variables(all_incoming_packets, all_client_infos)
@@ -24,6 +24,10 @@ if __name__ == '__main__':
 
     while not window_should_close():
         # Update
+        # send all the clients their packets
+        for client_info in all_client_infos:
+            if not client_info.should_terminate:
+                client_info.outgoing_queue.put(all_incoming_packets.get())
 
         for boid in boids:
             boid.update(get_frame_time(), boids, 10, 10, 800 - 10, 450 - 10)

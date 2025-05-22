@@ -6,7 +6,6 @@ from boid_helper import get_triangle_points
 from network import Package, PackageKind
 from boid import Boid
 from client_network import communicating_setup, setup_client_variables, set_shutdown, setup_incoming_packets_thread, setup_outgoing_packets_thread
-from boid_network import serialize_boids, deserialize_boids
 
 incoming_packets: queue.Queue[Package] = queue.Queue()  # a queue for all incoming packets
 outgoing_packets: queue.Queue[Package] = queue.Queue()  # a queue for all outgoing packets
