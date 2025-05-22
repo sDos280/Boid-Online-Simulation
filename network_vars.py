@@ -15,3 +15,4 @@ class PackageKind(enum.IntEnum):
     TEST_DATA = 0xFE
 
     ESTABLISH_CONNECTION = 0x01
+    BOIDS_STATE = 0x02
