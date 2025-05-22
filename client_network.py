@@ -24,25 +24,28 @@ def setup_incoming_packets_thread(incoming_socket):
     global __shutdown
 
     while not __shutdown:
-        status, package = Network.receive_data(incoming_socket)
+        temp = Network.receive_data(incoming_socket)
 
-        match status:
-            case ProtocolStatusCodes.ALL_GOOD:
-                if package.kind != PackageKind.EXIT_KIND:
-                    __incoming_packets.put(package)
-                else:
-                    logger.debug("Received exit package, shutting down...")
+        if temp is not None:  # temp is None on timeout
+            status, package = temp
+
+            match status:
+                case ProtocolStatusCodes.ALL_GOOD:
+                    if package.kind != PackageKind.EXIT_KIND:
+                        __incoming_packets.put(package)
+                    else:
+                        logger.debug("Received exit package, shutting down...")
+                        __shutdown = True
+                        break
+
+                case ProtocolStatusCodes.SOCKET_DISCONNECTED | ProtocolStatusCodes.SOCKET_CONNECTION_ERROR:
+                    logger.fatal('Seems client disconnected abnormally')
                     __shutdown = True
                     break
-
-            case ProtocolStatusCodes.SOCKET_DISCONNECTED | ProtocolStatusCodes.SOCKET_CONNECTION_ERROR:
-                logger.fatal('Seems client disconnected abnormally')
-                __shutdown = True
-                break
-            case _:
-                logger.fatal(f'Something went wrong: {status} : {PackageKind(package.kind).name} : {package.payload}')
-                __shutdown = True
-                break
+                case _:
+                    logger.fatal(f'Something went wrong: {status} : {PackageKind(package.kind).name} : {package.payload}')
+                    __shutdown = True
+                    break
 
     logger.debug("Incoming packets thread shutting down...")
 
