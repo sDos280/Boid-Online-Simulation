@@ -3,6 +3,7 @@ from boid import Boid
 import random
 import math
 
+
 def generate_boids(num_boids: int) -> list[Boid]:
     boids = []
     for _ in range(num_boids):
@@ -12,6 +13,7 @@ def generate_boids(num_boids: int) -> list[Boid]:
         vy = -Boid.MAX_SPEED if random.random() < 0.5 else Boid.MAX_SPEED
         boids.append(Boid(x, y, vx, vy))
     return boids
+
 
 def get_triangle_points(x, y, vx, vy, size=1.0):
     """

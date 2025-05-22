@@ -36,15 +36,15 @@ class Boid:
     MAX_SPEED = 100
     MAX_FORCE = 100
     MAX_TURN = 5
-    PERCEPTION_RADIUS = 50
+    PERCEPTION_RADIUS = 100
     AVOID_RADIUS = 20
     CROWDING = 15
     CAN_WRAP = False
     EDGE_DISTANCE_PCT = 5
     SEPARATION = 1
-    ALIGNMENT = 1 / 2
-    COHESION = 1 / 50
-    EDGE_AVOIDANCE = 1
+    ALIGNMENT = 1 / 8
+    COHESION = 1 / 100
+    EDGE_AVOIDANCE = 1 / 2
 
     def __init__(self, x: float, y: float, vx: float, vy: float):
         self.x: float = x  # x position
