@@ -39,7 +39,7 @@ def setup_incoming_packets_thread(incoming_socket):
                         break
 
                 case ProtocolStatusCodes.SOCKET_DISCONNECTED | ProtocolStatusCodes.SOCKET_CONNECTION_ERROR:
-                    logger.fatal('Seems client disconnected abnormally')
+                    logger.fatal('Seems server disconnected abnormally')
                     __shutdown = True
                     break
                 case _:
@@ -57,7 +57,7 @@ def setup_outgoing_packets_thread(outgoing_socket):
         if not __outgoing_packets.empty():
             kind, data = __outgoing_packets.get()
 
-            Network.send_data(outgoing_socket, kind, data, log=True)
+            Network.send_data(outgoing_socket, kind, data, log=False)
 
             __outgoing_packets.task_done()
 
@@ -104,6 +104,15 @@ def setup_client_variables(incoming_queue, outgoing_queue):
 
     __incoming_packets = incoming_queue
     __outgoing_packets = outgoing_queue
+
+
+def get_shutdown():
+    """
+    This function returns the shutdown flag.
+    It is used to check if the threads should shut down.
+    """
+    global __shutdown
+    return __shutdown
 
 
 def set_shutdown(value):

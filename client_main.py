@@ -5,7 +5,7 @@ from raylibpy import *
 from boid_helper import get_triangle_points, deserialize_boids
 from network import Package, PackageKind
 from boid import Boid
-from client_network import communicating_setup, setup_client_variables, set_shutdown, setup_incoming_packets_thread, setup_outgoing_packets_thread
+from client_network import communicating_setup, setup_client_variables, get_shutdown, set_shutdown, setup_incoming_packets_thread, setup_outgoing_packets_thread
 
 incoming_packets: queue.Queue[Package] = queue.Queue()  # a queue for all incoming packets
 outgoing_packets: queue.Queue[Package] = queue.Queue()  # a queue for all outgoing packets
@@ -56,28 +56,24 @@ if __name__ == '__main__':
     boids: list[Boid] = []
     new_boids: list[Boid] = []
 
-    while not window_should_close():
+    while not window_should_close() and get_shutdown() is False:
         # Update
         # check if there is any incoming packet
-        if not incoming_packets.empty():
-            packet = incoming_packets.get()
-            # Process the packet
 
-            print(packet.payload)
+        while not incoming_packets.empty():
+            packet = incoming_packets.get()
+
+            # Process the packet
             match packet.kind:
                 case PackageKind.BOIDS_STATE:
                     # Update boids state
                     boids = deserialize_boids(packet.payload)
-                    logger.debug(f"Received {len(boids)} boids from server.")
                 case PackageKind.ERROR:
                     logger.error(f"Error packet received: {packet.payload.decode('utf-8')}")
                 case _:
                     logger.warning(f"Unknown packet kind received: {packet.kind.name}")
 
             incoming_packets.task_done()
-
-        for boid in boids:
-            boid.update(get_frame_time(), boids, 10, 10, 800 - 10, 450 - 10)
 
         begin_drawing()
         clear_background(RAYWHITE)
