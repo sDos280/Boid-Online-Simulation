@@ -1,7 +1,7 @@
 import socket
 from network_vars import *
 from network import Network, ProtocolStatusCodes, Package, PackageKind
-
+import time
 
 def communicating_setup():
     # Connect to server setup server
@@ -34,5 +34,8 @@ def communicating_setup():
 if __name__ == '__main__':
     incoming_socket, outgoing_socket = communicating_setup()
 
+    # Send a test data package
+    time.sleep(5)
+    Network.send_data(outgoing_socket, Package(PackageKind.TEST_DATA, b'test data'))
     while True:
         pass

@@ -5,12 +5,15 @@ import traceback
 import threading
 from network_vars import *
 from network import Network, Package, ProtocolStatusCodes, PackageKind
+import logging
 
-all_incoming_packets = queue.Queue()  # a queue for all incoming packets
+logger = logging.getLogger(__name__)
+
+__all_incoming_packets = None  # a queue for all incoming packets
 
 shutdown = False  # a flag to indicate if the server should shut down
 
-all_client_infos = []  # a list to store all client information
+__all_client_infos = None  # a list to store all client information
 
 
 class ClientCommunicationInfo:
@@ -37,7 +40,7 @@ def client_incoming_thread_handler(client_info: ClientCommunicationInfo):
                 match status:
                     case ProtocolStatusCodes.ALL_GOOD:
                         if package.kind != PackageKind.EXIT_KIND:
-                            all_incoming_packets.put(package)
+                            __all_incoming_packets.put(package)
 
                     case ProtocolStatusCodes.SOCKET_DISCONNECTED | ProtocolStatusCodes.SOCKET_CONNECTION_ERROR:
                         print('Seems client disconnected abnormally')
@@ -59,6 +62,8 @@ def client_incoming_thread_handler(client_info: ClientCommunicationInfo):
         client_info.should_terminate = True
 
     print(f"Ended incoming thread handler for {client_info.client_id}!")
+
+    client_info.incoming_socket.close()
 
 
 def client_outgoing_thread_handler(client_info: ClientCommunicationInfo):
@@ -84,6 +89,8 @@ def client_outgoing_thread_handler(client_info: ClientCommunicationInfo):
         client_info.should_terminate = True
 
     print(f"Ended outgoing thread handler for {client_info.client_id}!")
+
+    client_info.outgoing_socket.close()
 
 
 # this function creates a mini server that his only job is to establish a connection with the client
@@ -128,7 +135,7 @@ def client_communication_establish_server_thread(server_establish_socket: socket
             client_info = ClientCommunicationInfo(outgoing_socket, incoming_socket, address, client_id)
 
             # add the client info to the list
-            all_client_infos.append(client_info)
+            __all_client_infos.append(client_info)
 
             # start the threads
             threading.Thread(target=client_incoming_thread_handler, args=(client_info,)).start()
@@ -145,13 +152,27 @@ def client_communication_establish_server_thread(server_establish_socket: socket
     server_establish_socket.close()
 
 
-if __name__ == '__main__':
+def server_establish_connection():
     server_establish_socket = socket.socket()
     server_establish_socket.bind((SERVER_IP, SERVER_SETUP_PORT))
     server_establish_socket.listen(20)
 
     # start the server
     threading.Thread(target=client_communication_establish_server_thread, args=(server_establish_socket,)).start()
+
+    return server_establish_socket
+
+
+def setup_server_variables(all_incoming_packets: queue.Queue, all_client_infos: list[ClientCommunicationInfo]):
+    global __all_incoming_packets, __all_client_infos
+    __all_incoming_packets = all_incoming_packets
+
+    __all_client_infos = all_client_infos
+
+
+if __name__ == '__main__':
+    setup_server_variables(queue.Queue(), [])
+    server_establish_socket = server_establish_connection()
 
     try:
         while True:
