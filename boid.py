@@ -62,6 +62,11 @@ class Boid:
         x, y, vx, vy = struct.unpack('!ffff', data)
         return cls(x, y, vx, vy)
 
+    @staticmethod
+    def get_bytes_size() -> int:
+        """Get the size of the serialized boid data."""
+        return struct.calcsize('!ffff')
+
     def get_distance_squared(self, boid: 'Boid') -> float:
         """Calculate the squared distance to another boid."""
         return (self.x - boid.x) ** 2 + (self.y - boid.y) ** 2
