@@ -16,7 +16,7 @@ if __name__ == '__main__':
     setup_server_variables(all_incoming_packets, all_client_infos)
     server_establish_socket = server_establish_connection()
 
-    init_window(800, 450, "raylib [core] example - basic window")
+    init_window(800, 450, "Server view")
 
     set_target_fps(60)
 
