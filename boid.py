@@ -1,5 +1,6 @@
 import struct
 import math
+import random
 
 
 def to_polar(x: float, y: float) -> tuple[float, float]:
@@ -46,26 +47,27 @@ class Boid:
     COHESION = 1 / 100
     EDGE_AVOIDANCE = 1 / 2
 
-    def __init__(self, x: float, y: float, vx: float, vy: float):
+    def __init__(self, x: float, y: float, vx: float, vy: float, id: int = None):
         self.x: float = x  # x position
         self.y: float = y  # y position
         self.vx: float = vx  # x velocity
         self.vy: float = vy  # y velocity
+        self.id: int = random.randint(0, 0xFFFFFFFF) if id is None else id  # boid id
 
     def serialize(self) -> bytes:
         """Serialize the boid's state for network transmission."""
-        return struct.pack('!ffff', self.x, self.y, self.vx, self.vy)
+        return struct.pack('!ffffI', self.x, self.y, self.vx, self.vy, self.id)
 
     @classmethod
     def deserialize(cls, data: bytes):
         """Deserialize the boid's state from network transmission."""
-        x, y, vx, vy = struct.unpack('!ffff', data)
-        return cls(x, y, vx, vy)
+        x, y, vx, vy, id = struct.unpack('!ffffI', data)
+        return cls(x, y, vx, vy, id)
 
     @staticmethod
     def get_bytes_size() -> int:
         """Get the size of the serialized boid data."""
-        return struct.calcsize('!ffff')
+        return struct.calcsize('!ffffI')
 
     def get_distance_squared(self, boid: 'Boid') -> float:
         """Calculate the squared distance to another boid."""
