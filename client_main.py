@@ -4,7 +4,7 @@ import queue
 import time
 
 from raylibpy import *
-from boid_helper import get_triangle_points, deserialize_boids
+from boid_helper import get_triangle_points, deserialize_boids, generate_random_velocity_boid
 from network import Package, PackageKind
 from boid import Boid
 from client_network import communicating_setup, setup_client_variables, get_shutdown, set_shutdown, setup_incoming_packets_thread, setup_outgoing_packets_thread
@@ -82,6 +82,13 @@ if __name__ == '__main__':
     while not window_should_close() and get_shutdown() is False:
         # Update
         # check if there is any incoming packet
+        mouse_position = get_mouse_position()
+
+        if is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+            # Generate a new boid at the mouse position
+            new_boid = generate_random_velocity_boid(mouse_position.x, mouse_position.y)
+            new_boids.append(new_boid)
+            outgoing_packets.put(Package(PackageKind.ADD_BOID, new_boid.serialize()))
 
         while not incoming_packets.empty():
             packet = incoming_packets.get()

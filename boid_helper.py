@@ -4,6 +4,13 @@ import math
 import boid
 
 
+def generate_random_velocity_boid(start_x: float, start_y: float) -> Boid:
+    """Generate a random velocity boid with a given starting position."""
+    vx = -Boid.MAX_SPEED if random.random() < 0.5 else Boid.MAX_SPEED
+    vy = -Boid.MAX_SPEED if random.random() < 0.5 else Boid.MAX_SPEED
+    return Boid(start_x, start_y, vx, vy)
+
+
 def generate_boids(num_boids: int) -> list[Boid]:
     boids = []
     for _ in range(num_boids):

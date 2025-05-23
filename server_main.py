@@ -1,9 +1,10 @@
 import queue
 import logging
 from raylibpy import *
-from boid_helper import generate_boids, get_triangle_points, serialize_boids
+from boid_helper import generate_boids, get_triangle_points, serialize_boids, deserialize_boids
 from server_network import ClientCommunicationInfo, setup_server_variables, server_establish_connection, set_shutdown
 from network import Package, PackageKind
+from boid import Boid
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,17 @@ if __name__ == '__main__':
     while not window_should_close():
         # Update
         # send all the clients their packets
+        while not all_incoming_packets.empty():
+            packet = all_incoming_packets.get()
+            if packet.kind != PackageKind.EXIT_KIND:
+                match packet.kind:
+                    case PackageKind.ADD_BOID:
+                        boids.append(Boid.deserialize(packet.payload))
+                    case _:
+                        logger.error(f"Unknown package kind: {packet.kind.name}")
+            else:
+                logger.fatal(f"An exit package slipped through to server main!")
+
         for client_info in all_client_infos:
             if not client_info.should_terminate:
                 client_info.outgoing_queue.put(Package(PackageKind.BOIDS_STATE, serialize_boids(boids)))
