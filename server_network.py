@@ -5,9 +5,9 @@ import traceback
 import threading
 from network_vars import *
 from network import Network, Package, ProtocolStatusCodes, PackageKind
-import logging
+import logger_helper
 
-logger = logging.getLogger(__name__)
+logger = logger_helper.create_formatted_logger()
 
 __all_incoming_packets = None  # a queue for all incoming packets
 
@@ -32,7 +32,7 @@ def client_incoming_thread_handler(client_info: ClientCommunicationInfo):
 
     try:
         while not client_info.should_terminate and not shutdown:
-            temp = Network.receive_data(client_info.incoming_socket, client_info.client_id)
+            temp = Network.receive_data(client_info.incoming_socket, client_info.client_id, log=True)
 
             if temp is not None:  # temp is None on timeout
                 status, package = temp
@@ -76,7 +76,7 @@ def client_outgoing_thread_handler(client_info: ClientCommunicationInfo):
             while not client_info.outgoing_queue.empty():
                 package = client_info.outgoing_queue.get()
 
-                Network.send_data(client_info.outgoing_socket, package)
+                Network.send_data(client_info.outgoing_socket, package, log=False)
 
                 client_info.outgoing_queue.task_done()
 

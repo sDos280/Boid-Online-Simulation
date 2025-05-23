@@ -1,16 +1,16 @@
 import socket
 import time
-import logging
 import threading
 from network_vars import *
 from network import Network, ProtocolStatusCodes, Package, PackageKind
+import logger_helper
 
 __incoming_packets = None  # a queue for all incoming packets
 __outgoing_packets = None  # a queue for all outgoing packets
 
-logger = logging.getLogger(__name__)
-
 __shutdown = False  # a flag to indicate if the client should shut down
+
+logger = logger_helper.create_formatted_logger()
 
 
 def setup_incoming_packets_thread(incoming_socket):
@@ -39,9 +39,8 @@ def setup_incoming_packets_thread(incoming_socket):
                         break
 
                 case ProtocolStatusCodes.SOCKET_DISCONNECTED | ProtocolStatusCodes.SOCKET_CONNECTION_ERROR:
-                    print(f"Socket disconnected: {status.name}")
                     if __shutdown:
-                        logger.warning('Server closed this socket, shutting down...')
+                        logger.warning('Server closed this socket, this is ok, shutting down...')
                     else:
                         logger.fatal('Seems server disconnected abnormally')
 
