@@ -50,11 +50,12 @@ if __name__ == '__main__':
 
     init_window(800, 450, "Client view")
 
-    set_target_fps(60)
+    set_target_fps(30)
 
-    last = b""
     boids: list[Boid] = []
     new_boids: list[Boid] = []
+
+    last_state_pylod: bytes = b""
 
     while not window_should_close() and get_shutdown() is False:
         # Update
@@ -67,7 +68,7 @@ if __name__ == '__main__':
             match packet.kind:
                 case PackageKind.BOIDS_STATE:
                     # Update boids state
-                    boids = deserialize_boids(packet.payload)
+                    last_state_pylod = packet.payload
                 case PackageKind.ERROR:
                     logger.error(f"Error packet received: {packet.payload.decode('utf-8')}")
                 case _:
@@ -75,10 +76,13 @@ if __name__ == '__main__':
 
             incoming_packets.task_done()
 
+        boids = deserialize_boids(last_state_pylod)
+
+        # Draw
+
         begin_drawing()
         clear_background(RAYWHITE)
 
-        # Draw
         for boid in boids:
             points = get_triangle_points(boid.x, boid.y, boid.vx, boid.vy, 10)
             point1 = Vector2(points[0][0], points[0][1])
