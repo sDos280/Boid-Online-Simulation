@@ -3,8 +3,6 @@ import socket
 import time
 import traceback
 import threading
-
-import boid
 from network_vars import *
 from network import Network, Package, ProtocolStatusCodes, PackageKind
 import logging
@@ -43,6 +41,10 @@ def client_incoming_thread_handler(client_info: ClientCommunicationInfo):
                     case ProtocolStatusCodes.ALL_GOOD:
                         if package.kind != PackageKind.EXIT_KIND:
                             __all_incoming_packets.put(package)
+                        else:
+                            logger.info(f"Received exit package from client {client_info.client_id}, shutting down...")
+                            client_info.should_terminate = True
+                            break
 
                     case ProtocolStatusCodes.SOCKET_DISCONNECTED | ProtocolStatusCodes.SOCKET_CONNECTION_ERROR:
                         logger.error('Seems client disconnected abnormally')
@@ -142,8 +144,6 @@ def client_communication_establish_server_thread(server_establish_socket: socket
             threading.Thread(target=client_outgoing_thread_handler, args=(client_info,)).start()
 
             client_id += 1
-
-            # client_establish_socket.close()
         except socket.error as err:
             logger.fatal(f'Error: client_communication_establish_server_thread: {err}')
             logger.fatal(traceback.format_exc())

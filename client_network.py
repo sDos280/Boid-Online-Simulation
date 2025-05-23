@@ -39,7 +39,12 @@ def setup_incoming_packets_thread(incoming_socket):
                         break
 
                 case ProtocolStatusCodes.SOCKET_DISCONNECTED | ProtocolStatusCodes.SOCKET_CONNECTION_ERROR:
-                    logger.fatal('Seems server disconnected abnormally')
+                    print(f"Socket disconnected: {status.name}")
+                    if __shutdown:
+                        logger.warning('Server closed this socket, shutting down...')
+                    else:
+                        logger.fatal('Seems server disconnected abnormally')
+
                     __shutdown = True
                     break
                 case _:
@@ -51,15 +56,21 @@ def setup_incoming_packets_thread(incoming_socket):
 
 
 def setup_outgoing_packets_thread(outgoing_socket):
+    global __shutdown
     logger.debug("Starting outgoing packets thread...")
 
     while not __shutdown:
         if not __outgoing_packets.empty():
-            kind, data = __outgoing_packets.get()
+            package = __outgoing_packets.get()
 
-            Network.send_data(outgoing_socket, kind, data, log=False)
+            Network.send_data(outgoing_socket, package, log=True)
 
             __outgoing_packets.task_done()
+
+            if package.kind == PackageKind.EXIT_KIND:
+                logger.debug("Received exit package, shutting down...")
+                __shutdown = True
+                break
 
         time.sleep(1 / 10)
 

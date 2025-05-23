@@ -1,6 +1,8 @@
 import threading
 import logging
 import queue
+import time
+
 from raylibpy import *
 from boid_helper import get_triangle_points, deserialize_boids
 from network import Package, PackageKind
@@ -36,6 +38,10 @@ def setup_network():
 
 def shutdown_network(incoming_thread, outgoing_thread):
     logger.debug("Shutting down client network...")
+    outgoing_packets.put(Package(PackageKind.EXIT_KIND, b""))
+
+    time.sleep(1)  # Give some time for the exit package to be sent
+
     set_shutdown(True)  # Set the shutdown flag to True
 
     # Wait for the threads to finish
@@ -45,17 +51,33 @@ def shutdown_network(incoming_thread, outgoing_thread):
     logger.debug("Client network shut down successfully.")
 
 
+def get_closest_boid_to_point(boids: list[Boid], point: tuple[float, float]) -> tuple[Boid | None, float]:
+    """Get the closest boid to a given point."""
+    closest_boid = None
+    min_distance = float('inf')
+
+    for boid in boids:
+        distance = (boid.x - point[0]) ** 2 + (boid.y - point[1]) ** 2
+        if distance < min_distance:
+            min_distance = distance
+            closest_boid = boid
+
+    return closest_boid, min_distance
+
+
 if __name__ == '__main__':
     incoming_thread, outgoing_thread = setup_network()
 
     init_window(800, 450, "Client view")
 
-    set_target_fps(30)
+    set_target_fps(60)
 
     boids: list[Boid] = []
     new_boids: list[Boid] = []
 
     last_state_pylod: bytes = b""
+
+    peaked_boid: int | None = None
 
     while not window_should_close() and get_shutdown() is False:
         # Update
@@ -78,8 +100,10 @@ if __name__ == '__main__':
 
         boids = deserialize_boids(last_state_pylod)
 
-        # Draw
+        mouse_position = get_mouse_position()
+        closes_boid, squared_distance = get_closest_boid_to_point(boids, (mouse_position.x, mouse_position.y))
 
+        # Draw
         begin_drawing()
         clear_background(RAYWHITE)
 
@@ -89,7 +113,10 @@ if __name__ == '__main__':
             point2 = Vector2(points[1][0], points[1][1])
             point3 = Vector2(points[2][0], points[2][1])
 
-            draw_triangle(point1, point3, point2, BLUE)
+            if closes_boid is not None and closes_boid.id == boid.id:
+                draw_triangle(point1, point3, point2, RED)
+            else:
+                draw_triangle(point1, point3, point2, BLUE)
 
         draw_fps(10, 10)
 
