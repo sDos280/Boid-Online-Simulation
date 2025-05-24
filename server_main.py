@@ -6,7 +6,7 @@ from server_network import ClientCommunicationInfo, setup_server_variables, serv
 from network import Package, PackageKind
 from boid import Boid
 
-MAX_BOIDS = 100  # maximum number of boids
+MAX_BOIDS = 200  # maximum number of boids
 
 logger = logging.getLogger(__name__)
 
