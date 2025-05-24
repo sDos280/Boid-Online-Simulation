@@ -17,3 +17,4 @@ class PackageKind(enum.IntEnum):
     ESTABLISH_CONNECTION = 0x01
     BOIDS_STATE = 0x02
     ADD_BOID = 0x03
+    REMOVE_BOID = 0x04

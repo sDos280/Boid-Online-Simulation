@@ -36,6 +36,11 @@ if __name__ == '__main__':
                     case PackageKind.ADD_BOID:
                         if len(boids) < MAX_BOIDS:
                             boids.append(Boid.deserialize(packet.payload))
+                    case PackageKind.REMOVE_BOID:
+                        for i in range(len(boids)):
+                            if boids[i].id == int.from_bytes(packet.payload, 'big'):
+                                boids.pop(i)
+                                break
                     case _:
                         logger.error(f"Unknown package kind: {packet.kind.name}")
             else:

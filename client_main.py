@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 shutdown = False  # a flag to indicate if the client should shut down
 
+PICK_BOID_SQUARED_RADIUS = 400  # squared radius to pick a boid, in pixels
+
 
 def setup_network():
     logger.debug("Setting up client-server communication...")
@@ -81,15 +83,24 @@ if __name__ == '__main__':
 
     while not window_should_close() and get_shutdown() is False:
         # Update
-        # check if there is any incoming packet
         mouse_position = get_mouse_position()
+        closes_boid, squared_distance = get_closest_boid_to_point(boids, (mouse_position.x, mouse_position.y))
 
         if is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
             # Generate a new boid at the mouse position
             new_boid = generate_random_velocity_boid(mouse_position.x, mouse_position.y)
             new_boids.append(new_boid)
             outgoing_packets.put(Package(PackageKind.ADD_BOID, new_boid.serialize()))
+            logger.info(f"Added new boid at position: ({new_boid.x}, {new_boid.y})")
 
+        if is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+            # Remove the closest boid to the mouse position
+            if closes_boid is not None and squared_distance < PICK_BOID_SQUARED_RADIUS:
+                peaked_boid = closes_boid.id
+                outgoing_packets.put(Package(PackageKind.REMOVE_BOID, peaked_boid.to_bytes(4, 'big')))
+                logger.info(f"Removed boid with ID: {peaked_boid}")
+
+            # check if there is any incoming packet
         while not incoming_packets.empty():
             packet = incoming_packets.get()
 
@@ -120,7 +131,7 @@ if __name__ == '__main__':
             point2 = Vector2(points[1][0], points[1][1])
             point3 = Vector2(points[2][0], points[2][1])
 
-            if closes_boid is not None and closes_boid.id == boid.id:
+            if closes_boid is not None and squared_distance < PICK_BOID_SQUARED_RADIUS and closes_boid.id == boid.id:
                 draw_triangle(point1, point3, point2, RED)
             else:
                 draw_triangle(point1, point3, point2, BLUE)
