@@ -6,6 +6,8 @@ from server_network import ClientCommunicationInfo, setup_server_variables, serv
 from network import Package, PackageKind
 from boid import Boid
 
+MAX_BOIDS = 100  # maximum number of boids
+
 logger = logging.getLogger(__name__)
 
 all_incoming_packets = queue.Queue()  # a queue for all incoming packets
@@ -32,7 +34,8 @@ if __name__ == '__main__':
             if packet.kind != PackageKind.EXIT_KIND:
                 match packet.kind:
                     case PackageKind.ADD_BOID:
-                        boids.append(Boid.deserialize(packet.payload))
+                        if len(boids) < MAX_BOIDS:
+                            boids.append(Boid.deserialize(packet.payload))
                     case _:
                         logger.error(f"Unknown package kind: {packet.kind.name}")
             else:
