@@ -50,7 +50,12 @@ def get_triangle_points(x, y, vx, vy, size=1.0):
     left = (x + perp_dx * (size / 2), y + perp_dy * (size / 2))
     right = (x - perp_dx * (size / 2), y - perp_dy * (size / 2))
 
-    return [tip, left, right]
+    # aplay offset
+    middle = ((tip[0] + left[0] + right[0]) / 3, (tip[1] + left[1] + right[1]) / 3)
+
+    offset = (x - middle[0], y - middle[1])
+
+    return [(tip[0]+offset[0], tip[1]+offset[1]), (left[0]+offset[0], left[1]+offset[1]), (right[0]+offset[0], right[1]+offset[1])]
 
 
 def serialize_boids(boids: list[boid.Boid]) -> bytes:
