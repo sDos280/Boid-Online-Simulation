@@ -1,6 +1,50 @@
 import struct
-import math
 import random
+import raylib_2d_extension
+import math
+
+
+def vector_sub(a, b):
+    return (a[0] - b[0], a[1] - b[1])
+
+
+def vector_dot(a, b):
+    return a[0] * b[0] + a[1] * b[1]
+
+
+def vector_length(v):
+    return math.sqrt(v[0] ** 2 + v[1] ** 2)
+
+
+def point_segment_distance(p, a, b):
+    """
+    Calculate the shortest distance from point p to the line segment ab.
+
+    Parameters:
+        p (tuple): The point (x, y).
+        a (tuple): First endpoint of the segment (x, y).
+        b (tuple): Second endpoint of the segment (x, y).
+
+    Returns:
+        float: The shortest distance from point p to segment ab.
+    """
+    ab = vector_sub(b, a)
+    ap = vector_sub(p, a)
+    ab_length_squared = vector_dot(ab, ab)
+
+    if ab_length_squared == 0:
+        # a and b are the same point
+        return vector_length(vector_sub(p, a))
+
+    # Project point p onto the line defined by a and b, but clamp it to the segment
+    t = max(0, min(1, vector_dot(ap, ab) / ab_length_squared))
+    projection = (a[0] + t * ab[0], a[1] + t * ab[1])
+
+    return vector_length(vector_sub(p, projection))
+
+
+def map_range(value, in_min, in_max, out_min, out_max):
+    return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
 
 def to_polar(x: float, y: float) -> tuple[float, float]:
@@ -30,9 +74,26 @@ def from_polar(r: float, theta: float) -> tuple[float, float]:
     return x, y
 
 
-# https://github.com/meznak/boids_py/blob/master/boid.py
+def alternating_sequence(n: int) -> int:
+    if n == 0:
+        return 0
+    return -((n + 1) // 2) if n % 2 == 1 else (n // 2)
 
+
+VIEW_ANGLE = 270 * (math.pi / 180)  # the max offset between two angles in the raycasting
+RAY_OFFSET = 15 * (math.pi / 180)  # the offset between two rays in the raycasting
+MAX_RAYS = 20
+_OFFSET_ANGLES = []
+
+for i in range(MAX_RAYS):
+    if math.fabs(alternating_sequence(i) * RAY_OFFSET) > VIEW_ANGLE / 2:
+        break
+    _OFFSET_ANGLES.append(alternating_sequence(i) * RAY_OFFSET)
+
+
+# https://github.com/meznak/boids_py/blob/master/boid.py
 class Boid:
+    # al the distances of radiuses are squared
     MIN_SPEED = 60
     MAX_SPEED = 100
     MAX_FORCE = 100
@@ -40,12 +101,13 @@ class Boid:
     PERCEPTION_RADIUS = 100
     AVOID_RADIUS = 20
     CROWDING = 15
-    CAN_WRAP = False
-    EDGE_DISTANCE_PCT = 5
+
+    OFFSET_ANGLES = _OFFSET_ANGLES
+
     SEPARATION = 1
     ALIGNMENT = 1 / 8
     COHESION = 1 / 100
-    EDGE_AVOIDANCE = 1 / 2
+    EDGE_AVOIDANCE = MAX_FORCE
 
     def __init__(self, x: float, y: float, vx: float, vy: float, id: int = None):
         self.x: float = x  # x position
@@ -159,17 +221,71 @@ class Boid:
 
         return steering_x * Boid.EDGE_AVOIDANCE, steering_y * Boid.EDGE_AVOIDANCE
 
-    def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float):
+    def avoid_segments(self, segments: list[tuple[tuple[float, float], tuple[float, float]]]) -> tuple[float, float]:
+        r, theta = to_polar(self.vx, self.vy)
+
+        def get_furthest_collision_for_a_ray(ray: raylib_2d_extension.Ray2D) -> raylib_2d_extension.Ray2DCollision | None:
+            """Return the furthest collision of the ray with the segments (no if there isn't any collision)."""
+            best_collision: raylib_2d_extension.Ray2DCollision | None = None
+            furthest_distance = float('-inf')
+
+            for segment in segments:
+                collision = raylib_2d_extension.get_ray2d_collision_line_segment(ray, segment[0], segment[1])
+
+                if collision.hit:
+                    if collision.distance > furthest_distance:
+                        furthest_distance = collision.distance
+                        best_collision = collision
+
+            return best_collision
+
+        def get_best_direction() -> tuple[float, float]:
+            over_all_ray_best_dir: tuple[float, float] | None = None
+            over_all_ray_furthest_distance: float = float('-inf')
+            over_all_ray_best_angle: float = 0.0
+
+            for offset_angle in Boid.OFFSET_ANGLES:
+                ray = raylib_2d_extension.Ray2D()
+                ray.position = (self.x, self.y)
+                ray.direction = from_polar(1, theta + offset_angle)
+
+                ray_furthest_collision = get_furthest_collision_for_a_ray(ray)
+
+                if ray_furthest_collision is None:  # we found a path without collisions
+                    return from_polar(Boid.EDGE_AVOIDANCE, theta + offset_angle)
+
+                if ray_furthest_collision.distance > over_all_ray_furthest_distance:  # we found a better path, although we know there is something a head
+                    over_all_ray_furthest_distance = ray_furthest_collision.distance
+                    over_all_ray_best_dir = ray.direction
+                    over_all_ray_best_angle = offset_angle
+
+            if over_all_ray_best_dir is not None:
+                return from_polar(Boid.EDGE_AVOIDANCE, over_all_ray_best_angle)
+
+        ray = raylib_2d_extension.Ray2D()
+        ray.position = (self.x, self.y)
+        ray.direction = get_best_direction()
+
+        raylib_2d_extension.draw_ray2d(ray, raylib_2d_extension.GREEN)
+
+        return get_best_direction()
+
+    def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float, segments: list[tuple[tuple[float, float], tuple[float, float]]]):
         boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance_squared(boid) < Boid.PERCEPTION_RADIUS * Boid.PERCEPTION_RADIUS]
         boids_in_avoidance_range = [boid for boid in boids_in_perception_range if boid is not self and self.get_distance_squared(boid) < Boid.AVOID_RADIUS * Boid.AVOID_RADIUS]
 
         # add edge avoidance
         edge_avoidance_x, edge_avoidance_y = self.edge_avoidance(min_x, min_y, max_x, max_y)
 
-        # add boid forces
+        # add segments avoidance
+        # segments_avoidance_x, segments_avoidance_y = self.avoid_segments(segments)
+
         afx, afy = self.alignment(boids_in_perception_range)
         cfx, cfy = self.cohesion(boids_in_perception_range)
         sfx, sfy = self.separation(boids_in_avoidance_range)
+
+        # fx = segments_avoidance_x + edge_avoidance_x + afx + cfx + sfx
+        # fy = segments_avoidance_y + segments_avoidance_y + afy + cfy + sfy
 
         fx = edge_avoidance_x + afx + cfx + sfx
         fy = edge_avoidance_y + afy + cfy + sfy
