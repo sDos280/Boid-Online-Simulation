@@ -107,7 +107,7 @@ class Boid:
     SEPARATION = 1
     ALIGNMENT = 1 / 8
     COHESION = 1 / 100
-    EDGE_AVOIDANCE = MAX_FORCE
+    EDGE_AVOIDANCE = 1 / 2
 
     def __init__(self, x: float, y: float, vx: float, vy: float, id: int = None):
         self.x: float = x  # x position

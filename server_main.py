@@ -51,7 +51,7 @@ if __name__ == '__main__':
                 client_info.outgoing_queue.put(Package(PackageKind.BOIDS_STATE, serialize_boids(boids)))
 
         for boid in boids:
-            boid.update(get_frame_time(), boids, 10, 10, 800 - 10, 450 - 10)
+            boid.update(get_frame_time(), boids, 10, 10, 800 - 10, 450 - 10, [])
 
         begin_drawing()
         clear_background(RAYWHITE)
