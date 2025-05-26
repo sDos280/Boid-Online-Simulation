@@ -53,7 +53,7 @@ def main():
 
     boids = [Boid(400, 100, 0, 40)]
 
-    segments = [((10, 400), (790, 400))]
+    segments = [((10, 400), (790, 350))]
 
     while not window_should_close():
         # Update
@@ -61,7 +61,6 @@ def main():
         clear_background(RAYWHITE)
 
         # Draw
-
         for boid in boids:
             boid.update(get_frame_time(), boids, 10, 10, 800 - 10, 450 - 10, segments)
 

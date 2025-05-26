@@ -93,13 +93,13 @@ for i in range(MAX_RAYS):
 
 # https://github.com/meznak/boids_py/blob/master/boid.py
 class Boid:
-    # al the distances of radiuses are squared
     MIN_SPEED = 60
     MAX_SPEED = 100
     MAX_FORCE = 100
     MAX_TURN = 5
     PERCEPTION_RADIUS = 100
     AVOID_RADIUS = 20
+    SEGMENT_AVOIDANCE_RADIUS = 80  # radius for segment avoidance
     CROWDING = 15
 
     OFFSET_ANGLES = _OFFSET_ANGLES
@@ -108,6 +108,8 @@ class Boid:
     ALIGNMENT = 1 / 8
     COHESION = 1 / 100
     EDGE_AVOIDANCE = 1 / 2
+
+    SEGMENT_AVOIDANCE_WEIGHT = 100
 
     def __init__(self, x: float, y: float, vx: float, vy: float, id: int = None):
         self.x: float = x  # x position
@@ -224,51 +226,63 @@ class Boid:
     def avoid_segments(self, segments: list[tuple[tuple[float, float], tuple[float, float]]]) -> tuple[float, float]:
         r, theta = to_polar(self.vx, self.vy)
 
-        def get_furthest_collision_for_a_ray(ray: raylib_2d_extension.Ray2D) -> raylib_2d_extension.Ray2DCollision | None:
-            """Return the furthest collision of the ray with the segments (no if there isn't any collision)."""
+        def get_furthest_collision_for_a_ray(ray: raylib_2d_extension.Ray2D) -> tuple[raylib_2d_extension.Ray2DCollision | None, float]:
             best_collision: raylib_2d_extension.Ray2DCollision | None = None
             furthest_distance = float('-inf')
 
             for segment in segments:
                 collision = raylib_2d_extension.get_ray2d_collision_line_segment(ray, segment[0], segment[1])
+                if collision.hit and collision.distance > furthest_distance:
+                    furthest_distance = collision.distance
+                    best_collision = collision
 
-                if collision.hit:
-                    if collision.distance > furthest_distance:
-                        furthest_distance = collision.distance
-                        best_collision = collision
+            return best_collision, furthest_distance
 
-            return best_collision
+        over_all_ray_best_dir = None
+        over_all_ray_furthest_distance = float('-inf')
+        over_all_ray_closest_distance = float('inf')  # Track closest hit distance
 
-        def get_best_direction() -> tuple[float, float]:
-            over_all_ray_best_dir: tuple[float, float] | None = None
-            over_all_ray_furthest_distance: float = float('-inf')
-            over_all_ray_best_angle: float = 0.0
+        ahead_ray = raylib_2d_extension.Ray2D()
+        ahead_ray.position = (self.x, self.y)
+        ahead_ray.direction = from_polar(1, theta)
 
-            for offset_angle in Boid.OFFSET_ANGLES:
-                ray = raylib_2d_extension.Ray2D()
-                ray.position = (self.x, self.y)
-                ray.direction = from_polar(1, theta + offset_angle)
+        temp, dir = get_furthest_collision_for_a_ray(ahead_ray)
 
-                ray_furthest_collision = get_furthest_collision_for_a_ray(ray)
+        if temp is None or dir > Boid.SEGMENT_AVOIDANCE_RADIUS:
+            # No collision ahead, so no need to avoid segments
+            return (0.0, 0.0)
 
-                if ray_furthest_collision is None:  # we found a path without collisions
-                    return from_polar(Boid.EDGE_AVOIDANCE, theta + offset_angle)
+        for offset_angle in Boid.OFFSET_ANGLES:
+            ray = raylib_2d_extension.Ray2D()
+            ray.position = (self.x, self.y)
+            ray.direction = from_polar(1, theta + offset_angle)
 
-                if ray_furthest_collision.distance > over_all_ray_furthest_distance:  # we found a better path, although we know there is something a head
-                    over_all_ray_furthest_distance = ray_furthest_collision.distance
-                    over_all_ray_best_dir = ray.direction
-                    over_all_ray_best_angle = offset_angle
+            ray_furthest_collision, distance = get_furthest_collision_for_a_ray(ray)
 
-            if over_all_ray_best_dir is not None:
-                return from_polar(Boid.EDGE_AVOIDANCE, over_all_ray_best_angle)
+            if ray_furthest_collision is None:
+                best_dir = from_polar(Boid.SEGMENT_AVOIDANCE_WEIGHT, theta + offset_angle)
+                return best_dir  # Free path, so immediately steer here
 
-        ray = raylib_2d_extension.Ray2D()
-        ray.position = (self.x, self.y)
-        ray.direction = get_best_direction()
+            # Track closest collision among all rays
+            if ray_furthest_collision.distance < over_all_ray_closest_distance:
+                over_all_ray_closest_distance = ray_furthest_collision.distance
 
-        raylib_2d_extension.draw_ray2d(ray, raylib_2d_extension.GREEN)
+            # Pick best direction among rays with the longest clearance
+            if ray_furthest_collision.distance > over_all_ray_furthest_distance:
+                over_all_ray_furthest_distance = ray_furthest_collision.distance
+                over_all_ray_best_dir = from_polar(Boid.SEGMENT_AVOIDANCE_WEIGHT, theta + offset_angle)
 
-        return get_best_direction()
+        # Draw selected ray
+        if over_all_ray_best_dir:
+            ray = raylib_2d_extension.Ray2D()
+            ray.position = (self.x, self.y)
+            ray.direction = over_all_ray_best_dir
+
+        # Don't apply avoidance if the nearest segment is too far
+        if over_all_ray_closest_distance > Boid.SEGMENT_AVOIDANCE_RADIUS:
+            return (0.0, 0.0)
+
+        return over_all_ray_best_dir if over_all_ray_best_dir else (0.0, 0.0)
 
     def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float, segments: list[tuple[tuple[float, float], tuple[float, float]]]):
         boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance_squared(boid) < Boid.PERCEPTION_RADIUS * Boid.PERCEPTION_RADIUS]
