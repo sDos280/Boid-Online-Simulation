@@ -1,70 +1,95 @@
-from raylibpy import *
 import math
+from raylibpy import *
 
 RAY_LENGTH = 1000000
 
 
 class Ray2D:
-    def __init__(self):
-        self.position: Vector2 = Vector2(0, 0)
-        self.direction: Vector2 = Vector2(0, 0)
+    def __init__(self, position: tuple[float, float] = (0.0, 0.0), direction: tuple[float, float] = (0.0, 0.0)):
+        self.position: tuple[float, float] = position
+        self.direction: tuple[float, float] = direction
 
 
 class Ray2DCollision:
-    def __init__(self):
-        self.hit: bool = False
-        self.distance: float = 0.0
-        self.point: Vector2 = Vector2(0, 0)
-        self.normal: Vector2 = Vector2(0, 0)
+    def __init__(self, hit: bool = False, distance: float = 0.0, point: tuple[float, float] = (0.0, 0.0), normal: tuple[float, float] = (0.0, 0.0)):
+        self.hit: bool = hit
+        self.distance: float = distance
+        self.point: tuple[float, float] = point
+        self.normal: tuple[float, float] = normal
+
+
+def draw_ray2d(ray: Ray2D, color: Color = RED):
+    ray_end = vector2_add(ray.position, vector2_scale(ray.direction, RAY_LENGTH))
+    draw_line_v(ray.position, ray_end, color)
+
+
+def draw_ray2d_collision(collision: Ray2DCollision, color: Color = GREEN):
+    if collision.hit:
+        draw_circle_v(collision.point, 5, color)
+        draw_line_v(collision.point, vector2_add(collision.point, collision.normal), color)
+        draw_text(f"Distance: {collision.distance:.2f}", collision.point[0] + 10, collision.point[1] + 10, 10, color)
 
 
 def sign(value: float) -> int:
     return 1 if value > 0 else -1 if value < 0 else 0
 
 
-def _vector2_cross_product(v: Vector2) -> Vector2:
-    """Return the perpendicular vector (2D cross product with z=1)"""
-    return Vector2(v.y, -v.x)
+def vector2_add(v1, v2):
+    return (v1[0] + v2[0], v1[1] + v2[1])
 
 
-def _vector2_normalize(v: Vector2) -> Vector2:
-    """Normalize a Vector2"""
-    length = math.sqrt(v.x ** 2 + v.y ** 2)
+def vector2_subtract(v1, v2):
+    return (v1[0] - v2[0], v1[1] - v2[1])
+
+
+def vector2_scale(v, scalar):
+    return (v[0] * scalar, v[1] * scalar)
+
+
+def vector2_length(v):
+    return math.sqrt(v[0] ** 2 + v[1] ** 2)
+
+
+def vector2_normalize(v):
+    length = vector2_length(v)
     if length == 0:
-        return Vector2(0, 0)
+        return (0.0, 0.0)
+    return (v[0] / length, v[1] / length)
 
-    return Vector2(v.x / length, v.y / length)
+
+def vector2_cross_product(v):
+    """Return the 2D perpendicular (cross with implicit Z = 1 vector)."""
+    return (v[1], -v[0])
 
 
-def get_ray2d_collision_line_segment(ray: Ray2D, p1: Vector2, p2: Vector2) -> Ray2DCollision:
+def get_ray2d_collision_line_segment(ray: Ray2D, p1: tuple[float, float], p2: tuple[float, float]) -> Ray2DCollision:
     collision = Ray2DCollision()
 
-    ray_end = Vector2(ray.position.x + ray.direction.x * RAY_LENGTH,
-                      ray.position.y + ray.direction.y * RAY_LENGTH)
+    ray_end = vector2_add(ray.position, vector2_scale(ray.direction, RAY_LENGTH))
 
-    denominator = (p2.y - p1.y) * (ray.position.x - ray_end.x) - (p2.x - p1.x) * (ray.position.y - ray_end.y)
+    denominator = (p2[1] - p1[1]) * (ray.position[0] - ray_end[0]) - (p2[0] - p1[0]) * (ray.position[1] - ray_end[1])
 
     if denominator != 0:
-        uA = ((p2.x - p1.x) * (ray_end.y - p1.y) - (p2.y - p1.y) * (ray_end.x - p1.x)) / denominator
-        uB = ((ray.position.x - ray_end.x) * (ray_end.y - p1.y) - (ray.position.y - ray_end.y) * (ray_end.x - p1.x)) / denominator
+        uA = ((p2[0] - p1[0]) * (ray_end[1] - p1[1]) - (p2[1] - p1[1]) * (ray_end[0] - p1[0])) / denominator
+        uB = ((ray.position[0] - ray_end[0]) * (ray_end[1] - p1[1]) - (ray.position[1] - ray_end[1]) * (ray_end[0] - p1[0])) / denominator
 
         if 0 <= uA <= 1 and 0 <= uB <= 1:
             collision.hit = True
-            collision.point = Vector2(
-                ray_end.x + uA * (ray.position.x - ray_end.x),
-                ray_end.y + uA * (ray.position.y - ray_end.y)
+            collision.point = (
+                ray_end[0] + uA * (ray.position[0] - ray_end[0]),
+                ray_end[1] + uA * (ray.position[1] - ray_end[1])
             )
-            collision.distance = math.sqrt((collision.point.x - ray.position.x) ** 2 + (collision.point.y - ray.position.y) ** 2)
+            collision.distance = vector2_length(vector2_subtract(collision.point, ray.position))
 
-            side = sign((ray.position.x - p1.x) * (p1.y - p2.y) + (ray.position.y - p1.y) * (p2.x - p1.x))
+            side = sign((ray.position[0] - p1[0]) * (p1[1] - p2[1]) + (ray.position[1] - p1[1]) * (p2[0] - p1[0]))
 
-            line_dir = Vector2(p2.x - p1.x, p2.y - p1.y)
-            line_normal = _vector2_cross_product(_vector2_normalize(line_dir))
+            line_dir = vector2_subtract(p2, p1)
+            line_normal = vector2_cross_product(vector2_normalize(line_dir))
 
             if side == 1:
-                collision.normal = Vector2(-line_normal.x, -line_normal.y)
+                collision.normal = (-line_normal[0], -line_normal[1])
             elif side == -1:
                 collision.normal = line_normal
-            # If side == 0, ray is colinear with line, no normal
+            # side == 0 => no normal; ray is on the line
 
     return collision
