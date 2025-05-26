@@ -75,11 +75,12 @@ if __name__ == '__main__':
     set_target_fps(60)
 
     boids: list[Boid] = []
-    new_boids: list[Boid] = []
 
     last_state_pylod: bytes = b""
 
     peaked_boid: int | None = None
+
+    boids_id_i_added = []
 
     while not window_should_close() and get_shutdown() is False:
         # Update
@@ -89,7 +90,7 @@ if __name__ == '__main__':
         if is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
             # Generate a new boid at the mouse position
             new_boid = generate_random_velocity_boid(mouse_position.x, mouse_position.y)
-            new_boids.append(new_boid)
+            boids_id_i_added.append(new_boid.id)
             outgoing_packets.put(Package(PackageKind.ADD_BOID, new_boid.serialize()))
             logger.info(f"Added new boid at position: ({new_boid.x}, {new_boid.y})")
 
@@ -100,7 +101,13 @@ if __name__ == '__main__':
                 outgoing_packets.put(Package(PackageKind.REMOVE_BOID, peaked_boid.to_bytes(4, 'big')))
                 logger.info(f"Removed boid with ID: {peaked_boid}")
 
-            # check if there is any incoming packet
+        # remove all boids in boids_i_added that are not longer present
+        new_boids_i_added = []
+        for boid_id in boids_id_i_added:
+            if boid_id in [b.id for b in boids]:
+                new_boids_i_added.append(boid_id)
+
+        # check if there is any incoming packet
         while not incoming_packets.empty():
             packet = incoming_packets.get()
 
@@ -134,9 +141,14 @@ if __name__ == '__main__':
             if closes_boid is not None and squared_distance < PICK_BOID_SQUARED_RADIUS and closes_boid.id == boid.id:
                 draw_triangle(point1, point3, point2, RED)
             else:
-                draw_triangle(point1, point3, point2, BLUE)
+                if boid.id in new_boids_i_added:
+                    draw_triangle(point1, point3, point2, GREEN)
+                else:
+                    draw_triangle(point1, point3, point2, BLUE)
 
         draw_fps(10, 10)
+
+        draw_text(f"Boid I Added Counter: {len(new_boids_i_added)}", 10, 30, 20, BLACK)
 
         end_drawing()
 
