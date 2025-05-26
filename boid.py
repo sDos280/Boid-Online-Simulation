@@ -307,7 +307,28 @@ class Boid:
         # Scale the direction vector by the MOVE_TOWARDS_WEIGHT
         return direction_x * Boid.MOVE_TOWARDS_WEIGHT, direction_y * Boid.MOVE_TOWARDS_WEIGHT
 
-    def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float, target: tuple[float, float] | None, segments: list[tuple[tuple[float, float], tuple[float, float]]]):
+    def move_away_from(self, target: tuple[float, float] | None) -> tuple[float, float]:
+        """
+        Move the boid away from a target point (target_x, target_y).
+        """
+        if target is None:
+            return 0.0, 0.0
+
+        direction_x = self.x - target[0]
+        direction_y = self.y - target[1]
+        distance = math.sqrt(direction_x ** 2 + direction_y ** 2)
+
+        if distance == 0:
+            return self.vx, self.vy
+
+        # Normalize the direction vector
+        direction_x /= distance
+        direction_y /= distance
+
+        # Scale the direction vector by the MOVE_TOWARDS_WEIGHT
+        return direction_x * Boid.MOVE_TOWARDS_WEIGHT, direction_y * Boid.MOVE_TOWARDS_WEIGHT
+
+    def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float, target_to: tuple[float, float] | None, target_away: tuple[float, float] | None, segments: list[tuple[tuple[float, float], tuple[float, float]]]):
         boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance_squared(boid) < Boid.PERCEPTION_RADIUS * Boid.PERCEPTION_RADIUS]
         boids_in_avoidance_range = [boid for boid in boids_in_perception_range if boid is not self and self.get_distance_squared(boid) < Boid.AVOID_RADIUS * Boid.AVOID_RADIUS]
 
@@ -323,10 +344,13 @@ class Boid:
         sfx, sfy = self.separation(boids_in_avoidance_range)
 
         # calculate move towards target
-        mtfx, mtfy = self.move_towards(target)
+        mtfx, mtfy = self.move_towards(target_to)
 
-        fx = edge_avoidance_x + mtfx + afx + cfx + sfx
-        fy = edge_avoidance_y + mtfy + afy + cfy + sfy
+        # calculate move away from target
+        mafx, mafy = self.move_away_from(target_away)
+
+        fx = edge_avoidance_x + mtfx + mafx + afx + cfx + sfx
+        fy = edge_avoidance_y + mtfy + mafy + afy + cfy + sfy
 
         # enforce turn limit
         _, old_heading = to_polar(self.vx, self.vy)

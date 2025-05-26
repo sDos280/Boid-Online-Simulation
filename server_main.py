@@ -52,13 +52,16 @@ if __name__ == '__main__':
             if not client_info.should_terminate:
                 client_info.outgoing_queue.put(Package(PackageKind.BOIDS_STATE, serialize_boids(boids)))
 
+        target_to = None
+        target_away = None
+
         if is_mouse_button_down(MOUSE_BUTTON_LEFT):
-            target = (mouse_pos.x, mouse_pos.y)
-        else:
-            target = None
+            target_to = (mouse_pos.x, mouse_pos.y)
+        elif is_mouse_button_down(MOUSE_BUTTON_RIGHT):
+            target_away = (mouse_pos.x, mouse_pos.y)
 
         for boid in boids:
-            boid.update(get_frame_time(), boids, 0, 0, 800, 450, target, [])
+            boid.update(get_frame_time(), boids, 0, 0, 800, 450, target_to, target_away, [])
 
         begin_drawing()
         clear_background(RAYWHITE)
