@@ -111,6 +111,8 @@ class Boid:
 
     SEGMENT_AVOIDANCE_WEIGHT = 100
 
+    MOVE_TOWARDS_WEIGHT = 100
+
     def __init__(self, x: float, y: float, vx: float, vy: float, id: int = None):
         self.x: float = x  # x position
         self.y: float = y  # y position
@@ -284,25 +286,47 @@ class Boid:
 
         return over_all_ray_best_dir if over_all_ray_best_dir else (0.0, 0.0)
 
-    def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float, segments: list[tuple[tuple[float, float], tuple[float, float]]]):
+    def move_towards(self, target: tuple[float, float] | None) -> tuple[float, float]:
+        """
+        Move the boid towards a target point (target_x, target_y).
+        """
+        if target is None:
+            return 0.0, 0.0
+
+        direction_x = target[0] - self.x
+        direction_y = target[1] - self.y
+        distance = math.sqrt(direction_x ** 2 + direction_y ** 2)
+
+        if distance == 0:
+            return self.vx, self.vy
+
+        # Normalize the direction vector
+        direction_x /= distance
+        direction_y /= distance
+
+        # Scale the direction vector by the MOVE_TOWARDS_WEIGHT
+        return direction_x * Boid.MOVE_TOWARDS_WEIGHT, direction_y * Boid.MOVE_TOWARDS_WEIGHT
+
+    def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float, target: tuple[float, float] | None, segments: list[tuple[tuple[float, float], tuple[float, float]]]):
         boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance_squared(boid) < Boid.PERCEPTION_RADIUS * Boid.PERCEPTION_RADIUS]
         boids_in_avoidance_range = [boid for boid in boids_in_perception_range if boid is not self and self.get_distance_squared(boid) < Boid.AVOID_RADIUS * Boid.AVOID_RADIUS]
 
-        # add edge avoidance
+        # calculate edge avoidance
         edge_avoidance_x, edge_avoidance_y = self.edge_avoidance(min_x, min_y, max_x, max_y)
 
-        # add segments avoidance
+        # calculate segments avoidance
         # segments_avoidance_x, segments_avoidance_y = self.avoid_segments(segments)
 
+        # calculate flow forces
         afx, afy = self.alignment(boids_in_perception_range)
         cfx, cfy = self.cohesion(boids_in_perception_range)
         sfx, sfy = self.separation(boids_in_avoidance_range)
 
-        # fx = segments_avoidance_x + edge_avoidance_x + afx + cfx + sfx
-        # fy = segments_avoidance_y + segments_avoidance_y + afy + cfy + sfy
+        # calculate move towards target
+        mtfx, mtfy = self.move_towards(target)
 
-        fx = edge_avoidance_x + afx + cfx + sfx
-        fy = edge_avoidance_y + afy + cfy + sfy
+        fx = edge_avoidance_x + mtfx + afx + cfx + sfx
+        fy = edge_avoidance_y + mtfy + afy + cfy + sfy
 
         # enforce turn limit
         _, old_heading = to_polar(self.vx, self.vy)

@@ -46,12 +46,19 @@ if __name__ == '__main__':
             else:
                 logger.fatal(f"An exit package slipped through to server main!")
 
+        mouse_pos = get_mouse_position()
+
         for client_info in all_client_infos:
             if not client_info.should_terminate:
                 client_info.outgoing_queue.put(Package(PackageKind.BOIDS_STATE, serialize_boids(boids)))
 
+        if is_mouse_button_down(MOUSE_BUTTON_LEFT):
+            target = (mouse_pos.x, mouse_pos.y)
+        else:
+            target = None
+
         for boid in boids:
-            boid.update(get_frame_time(), boids, 10, 10, 800 - 10, 450 - 10, [])
+            boid.update(get_frame_time(), boids, 0, 0, 800, 450, target, [])
 
         begin_drawing()
         clear_background(RAYWHITE)
