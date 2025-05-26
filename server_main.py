@@ -65,11 +65,6 @@ if __name__ == '__main__':
 
             draw_triangle(point1, point3, point2, BLUE)
 
-        for segment in segments:
-            p1 = Vector2(segment[0][0], segment[0][1])
-            p2 = Vector2(segment[1][0], segment[1][1])
-            draw_line_ex(p1, p2, 2, RED)
-
         draw_fps(10, 10)
 
         end_drawing()
