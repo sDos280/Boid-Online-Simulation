@@ -1,7 +1,7 @@
 import queue
 import logging
 from raylibpy import *
-from boid_helper import generate_boids, get_triangle_points, serialize_boids, deserialize_boids
+from boid_helper import generate_boids, get_triangle_points, serialize_boids
 from server_network import ClientCommunicationInfo, setup_server_variables, server_establish_connection, set_shutdown
 from network import Package, PackageKind
 from boid import Boid
@@ -61,7 +61,7 @@ if __name__ == '__main__':
             target_away = (mouse_pos.x, mouse_pos.y)
 
         for boid in boids:
-            boid.update(get_frame_time(), boids, 0, 0, 800, 450, target_to, target_away, [])
+            boid.update(get_frame_time(), boids, 0, 0, 800, 450, target_to, target_away)
 
         begin_drawing()
         clear_background(RAYWHITE)

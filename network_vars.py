@@ -12,7 +12,6 @@ PACKET_TYPE_FIELD_LENGTH = 1  # the length of the field type in bytes, 1 byte ==
 class PackageKind(enum.IntEnum):
     ERROR = 0x00
     EXIT_KIND = 0xFF
-    TEST_DATA = 0xFE
 
     ESTABLISH_CONNECTION = 0x01
     BOIDS_STATE = 0x02

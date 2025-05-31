@@ -1,50 +1,6 @@
 import struct
 import random
-import raylib_2d_extension
 import math
-
-
-def vector_sub(a, b):
-    return (a[0] - b[0], a[1] - b[1])
-
-
-def vector_dot(a, b):
-    return a[0] * b[0] + a[1] * b[1]
-
-
-def vector_length(v):
-    return math.sqrt(v[0] ** 2 + v[1] ** 2)
-
-
-def point_segment_distance(p, a, b):
-    """
-    Calculate the shortest distance from point p to the line segment ab.
-
-    Parameters:
-        p (tuple): The point (x, y).
-        a (tuple): First endpoint of the segment (x, y).
-        b (tuple): Second endpoint of the segment (x, y).
-
-    Returns:
-        float: The shortest distance from point p to segment ab.
-    """
-    ab = vector_sub(b, a)
-    ap = vector_sub(p, a)
-    ab_length_squared = vector_dot(ab, ab)
-
-    if ab_length_squared == 0:
-        # a and b are the same point
-        return vector_length(vector_sub(p, a))
-
-    # Project point p onto the line defined by a and b, but clamp it to the segment
-    t = max(0, min(1, vector_dot(ap, ab) / ab_length_squared))
-    projection = (a[0] + t * ab[0], a[1] + t * ab[1])
-
-    return vector_length(vector_sub(p, projection))
-
-
-def map_range(value, in_min, in_max, out_min, out_max):
-    return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
 
 def to_polar(x: float, y: float) -> tuple[float, float]:
@@ -74,23 +30,6 @@ def from_polar(r: float, theta: float) -> tuple[float, float]:
     return x, y
 
 
-def alternating_sequence(n: int) -> int:
-    if n == 0:
-        return 0
-    return -((n + 1) // 2) if n % 2 == 1 else (n // 2)
-
-
-VIEW_ANGLE = 270 * (math.pi / 180)  # the max offset between two angles in the raycasting
-RAY_OFFSET = 15 * (math.pi / 180)  # the offset between two rays in the raycasting
-MAX_RAYS = 20
-_OFFSET_ANGLES = []
-
-for i in range(MAX_RAYS):
-    if math.fabs(alternating_sequence(i) * RAY_OFFSET) > VIEW_ANGLE / 2:
-        break
-    _OFFSET_ANGLES.append(alternating_sequence(i) * RAY_OFFSET)
-
-
 # https://github.com/meznak/boids_py/blob/master/boid.py
 class Boid:
     MIN_SPEED = 60
@@ -99,17 +38,11 @@ class Boid:
     MAX_TURN = 5
     PERCEPTION_RADIUS = 100
     AVOID_RADIUS = 20
-    SEGMENT_AVOIDANCE_RADIUS = 80  # radius for segment avoidance
-    CROWDING = 15
-
-    OFFSET_ANGLES = _OFFSET_ANGLES
 
     SEPARATION = 1
     ALIGNMENT = 1 / 8
     COHESION = 1 / 100
     EDGE_AVOIDANCE = 1 / 2
-
-    SEGMENT_AVOIDANCE_WEIGHT = 100
 
     MOVE_TOWARDS_WEIGHT = 100
 
@@ -225,67 +158,6 @@ class Boid:
 
         return steering_x * Boid.EDGE_AVOIDANCE, steering_y * Boid.EDGE_AVOIDANCE
 
-    def avoid_segments(self, segments: list[tuple[tuple[float, float], tuple[float, float]]]) -> tuple[float, float]:
-        r, theta = to_polar(self.vx, self.vy)
-
-        def get_furthest_collision_for_a_ray(ray: raylib_2d_extension.Ray2D) -> tuple[raylib_2d_extension.Ray2DCollision | None, float]:
-            best_collision: raylib_2d_extension.Ray2DCollision | None = None
-            furthest_distance = float('-inf')
-
-            for segment in segments:
-                collision = raylib_2d_extension.get_ray2d_collision_line_segment(ray, segment[0], segment[1])
-                if collision.hit and collision.distance > furthest_distance:
-                    furthest_distance = collision.distance
-                    best_collision = collision
-
-            return best_collision, furthest_distance
-
-        over_all_ray_best_dir = None
-        over_all_ray_furthest_distance = float('-inf')
-        over_all_ray_closest_distance = float('inf')  # Track closest hit distance
-
-        ahead_ray = raylib_2d_extension.Ray2D()
-        ahead_ray.position = (self.x, self.y)
-        ahead_ray.direction = from_polar(1, theta)
-
-        temp, dir = get_furthest_collision_for_a_ray(ahead_ray)
-
-        if temp is None or dir > Boid.SEGMENT_AVOIDANCE_RADIUS:
-            # No collision ahead, so no need to avoid segments
-            return (0.0, 0.0)
-
-        for offset_angle in Boid.OFFSET_ANGLES:
-            ray = raylib_2d_extension.Ray2D()
-            ray.position = (self.x, self.y)
-            ray.direction = from_polar(1, theta + offset_angle)
-
-            ray_furthest_collision, distance = get_furthest_collision_for_a_ray(ray)
-
-            if ray_furthest_collision is None:
-                best_dir = from_polar(Boid.SEGMENT_AVOIDANCE_WEIGHT, theta + offset_angle)
-                return best_dir  # Free path, so immediately steer here
-
-            # Track closest collision among all rays
-            if ray_furthest_collision.distance < over_all_ray_closest_distance:
-                over_all_ray_closest_distance = ray_furthest_collision.distance
-
-            # Pick best direction among rays with the longest clearance
-            if ray_furthest_collision.distance > over_all_ray_furthest_distance:
-                over_all_ray_furthest_distance = ray_furthest_collision.distance
-                over_all_ray_best_dir = from_polar(Boid.SEGMENT_AVOIDANCE_WEIGHT, theta + offset_angle)
-
-        # Draw selected ray
-        if over_all_ray_best_dir:
-            ray = raylib_2d_extension.Ray2D()
-            ray.position = (self.x, self.y)
-            ray.direction = over_all_ray_best_dir
-
-        # Don't apply avoidance if the nearest segment is too far
-        if over_all_ray_closest_distance > Boid.SEGMENT_AVOIDANCE_RADIUS:
-            return (0.0, 0.0)
-
-        return over_all_ray_best_dir if over_all_ray_best_dir else (0.0, 0.0)
-
     def move_towards(self, target: tuple[float, float] | None) -> tuple[float, float]:
         """
         Move the boid towards a target point (target_x, target_y).
@@ -328,15 +200,12 @@ class Boid:
         # Scale the direction vector by the MOVE_TOWARDS_WEIGHT
         return direction_x * Boid.MOVE_TOWARDS_WEIGHT, direction_y * Boid.MOVE_TOWARDS_WEIGHT
 
-    def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float, target_to: tuple[float, float] | None, target_away: tuple[float, float] | None, segments: list[tuple[tuple[float, float], tuple[float, float]]]):
+    def update(self, dt: float, boids: list['Boid'], min_x: float, min_y: float, max_x: float, max_y: float, target_to: tuple[float, float] | None, target_away: tuple[float, float] | None):
         boids_in_perception_range = [boid for boid in boids if boid is not self and self.get_distance_squared(boid) < Boid.PERCEPTION_RADIUS * Boid.PERCEPTION_RADIUS]
         boids_in_avoidance_range = [boid for boid in boids_in_perception_range if boid is not self and self.get_distance_squared(boid) < Boid.AVOID_RADIUS * Boid.AVOID_RADIUS]
 
         # calculate edge avoidance
         edge_avoidance_x, edge_avoidance_y = self.edge_avoidance(min_x, min_y, max_x, max_y)
-
-        # calculate segments avoidance
-        # segments_avoidance_x, segments_avoidance_y = self.avoid_segments(segments)
 
         # calculate flow forces
         afx, afy = self.alignment(boids_in_perception_range)
