@@ -2,7 +2,7 @@ import logging
 from colorlog import ColoredFormatter
 
 
-def create_formatted_logger():
+def create_formatted_logger(level=logging.DEBUG):
     formatter = ColoredFormatter(
         "%(log_color)s%(levelname)-8s%(reset)s %(white)s%(message)s",
         log_colors={
@@ -19,6 +19,6 @@ def create_formatted_logger():
 
     logger = logging.getLogger(__name__)
     logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)  # or WARNING, INFO, etc.
+    logger.setLevel(level)  # or WARNING, INFO, etc.
 
     return logger
