@@ -62,7 +62,7 @@ def setup_outgoing_packets_thread(outgoing_socket):
         if not __outgoing_packets.empty():
             package = __outgoing_packets.get()
 
-            Network.send_data(outgoing_socket, package, log=True)
+            Network.send_data(outgoing_socket, package, log=False)
 
             __outgoing_packets.task_done()
 
@@ -132,21 +132,3 @@ def set_shutdown(value):
     """
     global __shutdown
     __shutdown = value
-
-
-if __name__ == '__main__':
-    incoming_socket, outgoing_socket = communicating_setup()
-
-    # Start the incoming and outgoing threads
-    incoming_thread = threading.Thread(target=setup_incoming_packets_thread, args=(incoming_socket,))
-    outgoing_thread = threading.Thread(target=setup_outgoing_packets_thread, args=(outgoing_socket,))
-
-    incoming_thread.start()
-    outgoing_thread.start()
-
-    while True:
-        pass
-
-    # Wait for the threads to finish
-    incoming_thread.join()
-    outgoing_thread.join()
