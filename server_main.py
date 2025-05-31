@@ -34,12 +34,17 @@ if __name__ == '__main__':
             if packet.kind != PackageKind.EXIT:
                 match packet.kind:
                     case PackageKind.ADD_BOID:
-                        if len(boids) < MAX_BOIDS:
-                            boids.append(Boid.deserialize(packet.payload))
+                        boid = Boid.deserialize(packet.payload)
+
+                        # check boids id is not already in the list and list is not full
+                        if boid.id not in [b.id for b in boids] and len(boids) < MAX_BOIDS:
+                            logger.info(f"Adding boid with ID: {boid.id} at position: ({boid.x}, {boid.y})")
+                            boids.append(boid)
                     case PackageKind.REMOVE_BOID:
                         for i in range(len(boids)):
                             if boids[i].id == int.from_bytes(packet.payload, 'big'):
                                 boids.pop(i)
+                                logger.info(f"Removed boid with ID: {packet.payload.hex()}")
                                 break
                     case _:
                         logger.error(f"Unknown package kind: {packet.kind.name}")
