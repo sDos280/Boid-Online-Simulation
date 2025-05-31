@@ -8,11 +8,12 @@ from boid_helper import get_triangle_points, deserialize_boids, generate_random_
 from network import Package, PackageKind
 from boid import Boid
 from client_network import communicating_setup, setup_client_variables, get_shutdown, set_shutdown, setup_incoming_packets_thread, setup_outgoing_packets_thread
+from logger_utils import create_formatted_logger
 
 incoming_packets: queue.Queue[Package] = queue.Queue()  # a queue for all incoming packets
 outgoing_packets: queue.Queue[Package] = queue.Queue()  # a queue for all outgoing packets
 
-logger = logging.getLogger(__name__)
+logger = create_formatted_logger()
 
 shutdown = False  # a flag to indicate if the client should shut down
 
