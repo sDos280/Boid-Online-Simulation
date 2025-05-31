@@ -40,7 +40,7 @@ def setup_network():
 
 def shutdown_network(incoming_thread, outgoing_thread):
     logger.debug("Shutting down client network...")
-    outgoing_packets.put(Package(PackageKind.EXIT_KIND, b""))
+    outgoing_packets.put(Package(PackageKind.EXIT, b""))
 
     time.sleep(1)  # Give some time for the exit package to be sent
 
@@ -101,7 +101,7 @@ if __name__ == '__main__':
                 outgoing_packets.put(Package(PackageKind.REMOVE_BOID, peaked_boid.to_bytes(4, 'big')))
                 logger.info(f"Removed boid with ID: {peaked_boid}")
 
-        # remove all boids in boids_i_added that are not longer present
+        # remove all boids in boids_i_added that are no longer present
         new_boids_i_added = []
         for boid_id in boids_id_i_added:
             if boid_id in [b.id for b in boids]:

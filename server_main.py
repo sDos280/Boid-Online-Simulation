@@ -31,7 +31,7 @@ if __name__ == '__main__':
         # send all the clients their packets
         while not all_incoming_packets.empty():
             packet = all_incoming_packets.get()
-            if packet.kind != PackageKind.EXIT_KIND:
+            if packet.kind != PackageKind.EXIT:
                 match packet.kind:
                     case PackageKind.ADD_BOID:
                         if len(boids) < MAX_BOIDS:

@@ -39,7 +39,7 @@ def client_incoming_thread_handler(client_info: ClientCommunicationInfo):
 
                 match status:
                     case ProtocolStatusCodes.ALL_GOOD:
-                        if package.kind != PackageKind.EXIT_KIND:
+                        if package.kind != PackageKind.EXIT:
                             __all_incoming_packets.put(package)
                         else:
                             logger.info(f"Received exit package from client {client_info.client_id}, shutting down...")

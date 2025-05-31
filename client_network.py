@@ -31,7 +31,7 @@ def setup_incoming_packets_thread(incoming_socket):
 
             match status:
                 case ProtocolStatusCodes.ALL_GOOD:
-                    if package.kind != PackageKind.EXIT_KIND:
+                    if package.kind != PackageKind.EXIT:
                         __incoming_packets.put(package)
                     else:
                         logger.debug("Received exit package, shutting down...")
@@ -66,7 +66,7 @@ def setup_outgoing_packets_thread(outgoing_socket):
 
             __outgoing_packets.task_done()
 
-            if package.kind == PackageKind.EXIT_KIND:
+            if package.kind == PackageKind.EXIT:
                 logger.debug("Received exit package, shutting down...")
                 __shutdown = True
                 break
