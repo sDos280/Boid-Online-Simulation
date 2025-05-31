@@ -5,10 +5,11 @@ from boid_helper import generate_boids, get_triangle_points, serialize_boids
 from server_network import ClientCommunicationInfo, setup_server_variables, server_establish_connection, set_shutdown
 from network import Package, PackageKind
 from boid import Boid
+from logger_utils import create_formatted_logger
 
 MAX_BOIDS = 200  # maximum number of boids
 
-logger = logging.getLogger(__name__)
+logger = create_formatted_logger()
 
 all_incoming_packets = queue.Queue()  # a queue for all incoming packets
 
