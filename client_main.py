@@ -92,7 +92,7 @@ if __name__ == '__main__':
             new_boid = generate_random_velocity_boid(mouse_position.x, mouse_position.y)
             boids_id_i_added.append(new_boid.id)
             outgoing_packets.put(Package(PackageKind.ADD_BOID, new_boid.serialize()))
-            logger.info(f"Added new boid at position: ({new_boid.x}, {new_boid.y})")
+            logger.info(f"Added new boid at position: ({new_boid.x}, {new_boid.y}, {new_boid.id})")
 
         if is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
             # Remove the closest boid to the mouse position

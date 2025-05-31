@@ -3,14 +3,14 @@ import time
 import threading
 from network_vars import *
 from network import Network, ProtocolStatusCodes, Package, PackageKind
-import logger_helper
+from logger_utils import create_formatted_logger
 
 __incoming_packets = None  # a queue for all incoming packets
 __outgoing_packets = None  # a queue for all outgoing packets
 
 __shutdown = False  # a flag to indicate if the client should shut down
 
-logger = logger_helper.create_formatted_logger()
+logger = create_formatted_logger()
 
 
 def setup_incoming_packets_thread(incoming_socket):

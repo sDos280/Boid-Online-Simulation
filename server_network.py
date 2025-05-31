@@ -5,9 +5,9 @@ import traceback
 import threading
 from network_vars import *
 from network import Network, Package, ProtocolStatusCodes, PackageKind
-import logger_helper
+from logger_utils import create_formatted_logger
 
-logger = logger_helper.create_formatted_logger()
+logger = create_formatted_logger()
 
 __all_incoming_packets = None  # a queue for all incoming packets
 

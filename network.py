@@ -1,10 +1,10 @@
 import enum
 import socket
 import traceback
-
-from cryptography.fernet import Fernet
-
+from logger_utils import create_formatted_logger  # Make sure this is the correct import path
 from network_vars import PackageKind
+
+logger = create_formatted_logger()
 
 # The length of the network package field (in bytes), used for defining a network package
 NETWORK_PACKAGE_LENGTH_FIELD_SIZE = 32 // 8  # 32 bit / 8 bit per char
@@ -14,28 +14,18 @@ NETWORK_PACKAGE_KIND_FIELD_SIZE = 1  # 1 byte == 0xFF
 class Package:
     def __init__(self, kind: PackageKind, payload: bytes | str):
         self.kind = kind
-
-        if isinstance(payload, str):
-            self.payload = payload.encode()
-        else:
-            self.payload = payload
+        self.payload = payload.encode() if isinstance(payload, str) else payload
 
 
 class ProtocolStatusCodes(enum.IntEnum):
     ALL_GOOD = 0
-
     GENERAL_ERROR = 1
     NONE_INTEGER_LENGTH_FIELD = 2
     INCOMPATIBLE_LENGTH_FIELD = 3
-
     NONE_INTEGER_KIND_FIELD = 4
-
     MESSAGE_TOO_LARGE = 5
-
     TOO_MANY_KINDS = 6
-
     SOCKET_CONNECTION_ERROR = 7
-
     SOCKET_DISCONNECTED = 8
 
 
@@ -43,116 +33,15 @@ def get_max_package_length():
     return 10 ** NETWORK_PACKAGE_LENGTH_FIELD_SIZE - 1
 
 
-class EncryptionHandler:
-    def __init__(self, key=Fernet.generate_key()):
-        self.key: bytes = key
-        self.fernet_obj = Fernet(key)
-
-    def encrypt(self, data: bytes):
-        return self.fernet_obj.encrypt(data)
-
-    def decrypt(self, data: bytes):
-        return self.fernet_obj.decrypt(data)
-
-    def update_key(self, key: bytes):
-        self.key: bytes = key
-        self.fernet_obj = Fernet(key)
-
-
 class Network:
-    """
-    A utility class for handling network operations, including sending and receiving data over a TCP connection,
-    logging data transmissions, and checking the format of transmitted data.
-
-    Methods:
-        log_transmission(direction, byte_data, tid=-1):
-            Logs the transmission direction, transaction ID (tid), and the TCP byte data.
-
-        check_format(byte_data):
-            Checks the format of the byte data to ensure it meets protocol specifications.
-
-        send_data(sock, kind_field, byte_data, tid=-1, log=True):
-            Sends byte data over a socket connection with an additional kind field and optional logging.
-
-        receive_data(sock, tid=-1, log=True):
-            Receives byte data from a socket connection, including length and kind fields, with logging.
-    """
-
     @staticmethod
     def log_transmission(direction: str, byte_data: bytes | str, tid: int = -1):
-        """
-        Logs the transmission details, including the direction (sent/received), transaction ID (tid),
-        and the byte data being transmitted. The log format differs based on the presence of a valid tid.
-
-        Args:
-            direction (str): The direction of the transmission, either 'sent' or 'received'.
-            byte_data (bytes | str): The TCP byte data to log.
-            tid (int, optional): The transaction ID associated with the transmission. Defaults to -1.
-
-        Returns:
-            None
-        """
-        if tid >= 0:
-            if direction == 'sent':
-                print(f'{tid} S LOG:Sent     >>> {byte_data}')
-            else:
-                print(f'{tid} S LOG:Received <<< {byte_data}')
-        else:
-            if direction == 'sent':
-                print(f'LOG:Sent     >>> {byte_data}')
-            else:
-                print(f'LOG:Received <<< {byte_data}')
-
-    @staticmethod
-    def check_format(byte_data: bytes):
-        """
-        Checks the format of the byte data to ensure it follows the protocol requirements.
-        Specifically, it validates the length field and compares the data length.
-
-        Args:
-            byte_data (bytes): The byte data to check.
-
-        Returns:
-            ProtocolStatusCodes: A status code indicating whether the data format is valid or not.
-        """
-        length_field = byte_data[0:NETWORK_PACKAGE_LENGTH_FIELD_SIZE]
-
-        try:
-            length_field = int(length_field)
-        except ValueError:
-            return ProtocolStatusCodes.NONE_INTEGER_LENGTH_FIELD
-
-        if 0 < length_field < NETWORK_PACKAGE_LENGTH_FIELD_SIZE:
-            return ProtocolStatusCodes.INCOMPATIBLE_LENGTH_FIELD
-
-        kind_field = byte_data[NETWORK_PACKAGE_LENGTH_FIELD_SIZE:NETWORK_PACKAGE_LENGTH_FIELD_SIZE + NETWORK_PACKAGE_KIND_FIELD_SIZE]
-
-        try:
-            kind_field = int(kind_field)
-        except ValueError:
-            return ProtocolStatusCodes.NONE_INTEGER_KIND_FIELD
-
-        return ProtocolStatusCodes.ALL_GOOD if len(byte_data) == length_field else ProtocolStatusCodes.INCOMPATIBLE_LENGTH_FIELD
+        prefix = f"{tid} " if tid >= 0 else ""
+        direction_str = "Sent >>>" if direction == 'sent' else "Received <<<"
+        logger.info(f'{prefix}S LOG:{direction_str} {byte_data}')
 
     @staticmethod
     def send_data(sock: socket.socket, package: Package, tid: int = -1, log: bool = True) -> tuple[ProtocolStatusCodes, str]:
-        """
-        Sends byte data over a socket connection, prefixed with a length field and a kind field.
-        Logs the data if logging is enabled. Handles socket errors and general exceptions gracefully.
-
-        Args:
-            sock (socket.socket): The socket through which data is sent.
-            package (Package): The package containing the kind and payload data to be sent.
-            tid (int, optional): The transaction ID for logging purposes. Defaults to -1.
-            log (bool, optional): Whether to log the transmission. Defaults to True.
-
-        Returns:
-            tuple: A status code from ProtocolStatusCodes and an error message or an empty string.
-
-        Raises:
-            ValueError: If the message or kind field exceeds the allowed size.
-        """
-
         if len(package.payload) + NETWORK_PACKAGE_LENGTH_FIELD_SIZE + NETWORK_PACKAGE_KIND_FIELD_SIZE > get_max_package_length():
             return ProtocolStatusCodes.MESSAGE_TOO_LARGE, f"The message is too large, len={len(package.payload)}"
 
@@ -161,18 +50,16 @@ class Network:
 
         header = (len(package.payload) + NETWORK_PACKAGE_LENGTH_FIELD_SIZE + NETWORK_PACKAGE_KIND_FIELD_SIZE).to_bytes(NETWORK_PACKAGE_LENGTH_FIELD_SIZE)
         header += package.kind.to_bytes(NETWORK_PACKAGE_KIND_FIELD_SIZE, byteorder='big')
-
         bytearray_data = header + package.payload
 
         try:
             sock.send(bytearray_data)
         except socket.error as err:
-            print(f'Socket Error send_data: {err}')
-            return ProtocolStatusCodes.SOCKET_CONNECTION_ERROR, f"{err}"
+            logger.error(f'Socket Error send_data: {err}')
+            return ProtocolStatusCodes.SOCKET_CONNECTION_ERROR, str(err)
         except Exception as err:
-            print(f'Socket Error send_data: {err}')
-            print(traceback.format_exc())
-            return ProtocolStatusCodes.GENERAL_ERROR, f"{err}"
+            logger.error(f'General Error send_data: {err}\n{traceback.format_exc()}')
+            return ProtocolStatusCodes.GENERAL_ERROR, str(err)
 
         if log:
             Network.log_transmission('sent', bytearray_data, tid)
@@ -180,40 +67,20 @@ class Network:
         return ProtocolStatusCodes.ALL_GOOD, ""
 
     @staticmethod
-    def receive_data(sock: socket.socket, tid: int = -1, log: bool = True) -> tuple[ProtocolStatusCodes, Package]:
-        """
-        Receives byte data from a socket connection. Handle cases where the data is received in
-        chunks, ensuring all data is properly gathered, including the length and kind fields.
-        Logs the data if logging is enabled.
-
-        Args:
-            sock (socket.socket): The socket from which data is received.
-            tid (int, optional): The transaction ID for logging purposes. Defaults to -1.
-            log (bool, optional): Whether to log the received data. Defaults to True.
-
-        Returns:
-            tuple: A status code from ProtocolStatusCodes, the kind field (as an integer), and
-                   the received data as a string, or an error message.
-
-        Raises:
-            socket.error: If a socket error occurs.
-            Exception: For other general errors.
-        """
-
+    def receive_data(sock: socket.socket, tid: int = -1, log: bool = True) -> tuple[ProtocolStatusCodes, Package] | None:
         def receive_data_main() -> tuple[ProtocolStatusCodes, Package, bytes] | None:
-            # TODO: make sure the number of bytes for the package length and for the kind is always of right length
             try:
                 all_bytes = b""
                 length_field = sock.recv(NETWORK_PACKAGE_LENGTH_FIELD_SIZE)
                 all_bytes += length_field
 
                 if length_field == b"":
-                    return ProtocolStatusCodes.SOCKET_DISCONNECTED, Package(PackageKind(0), "".encode()), all_bytes
+                    return ProtocolStatusCodes.SOCKET_DISCONNECTED, Package(PackageKind(0), b""), all_bytes
 
                 try:
                     length_field = int.from_bytes(length_field, byteorder='big')
                 except ValueError as err:
-                    return ProtocolStatusCodes.NONE_INTEGER_LENGTH_FIELD, Package(PackageKind(0), f"{err}".encode()), all_bytes
+                    return ProtocolStatusCodes.NONE_INTEGER_LENGTH_FIELD, Package(PackageKind(0), str(err).encode()), all_bytes
 
                 if length_field < 0:
                     return ProtocolStatusCodes.NONE_INTEGER_LENGTH_FIELD, Package(PackageKind(0), f"length_field={length_field}".encode()), all_bytes
@@ -223,46 +90,43 @@ class Network:
                 try:
                     kind_field = int.from_bytes(kind_field, byteorder='big')
                 except ValueError as err:
-                    return ProtocolStatusCodes.NONE_INTEGER_KIND_FIELD, Package(PackageKind(0), f"{err}".encode()), all_bytes
+                    return ProtocolStatusCodes.NONE_INTEGER_KIND_FIELD, Package(PackageKind(0), str(err).encode()), all_bytes
 
-                if length_field - NETWORK_PACKAGE_LENGTH_FIELD_SIZE - NETWORK_PACKAGE_KIND_FIELD_SIZE != 0:
-                    received_data = sock.recv(length_field - NETWORK_PACKAGE_LENGTH_FIELD_SIZE - NETWORK_PACKAGE_KIND_FIELD_SIZE)
+                payload_length = length_field - NETWORK_PACKAGE_LENGTH_FIELD_SIZE - NETWORK_PACKAGE_KIND_FIELD_SIZE
+                received_data = b""
+
+                if payload_length > 0:
+                    received_data = sock.recv(payload_length)
                     all_bytes += received_data
 
                     if received_data == b"":
-                        return ProtocolStatusCodes.SOCKET_DISCONNECTED, Package(PackageKind(kind_field), "".encode()), all_bytes
-                else:
-                    # no data is needed to be received
-                    received_data = b""
+                        return ProtocolStatusCodes.SOCKET_DISCONNECTED, Package(PackageKind(kind_field), b""), all_bytes
 
-                while len(received_data) != length_field - NETWORK_PACKAGE_LENGTH_FIELD_SIZE - NETWORK_PACKAGE_KIND_FIELD_SIZE:
-                    new_data = sock.recv(length_field - NETWORK_PACKAGE_LENGTH_FIELD_SIZE - len(received_data))
+                while len(received_data) != payload_length:
+                    new_data = sock.recv(payload_length - len(received_data))
                     all_bytes += new_data
 
-                    # this could fail if length_field - NETWORK_PACKAGE_LENGTH_FIELD_SIZE - len(received_data) == 0 TODO: rethink on this
                     if new_data == b"":
-                        return ProtocolStatusCodes.SOCKET_DISCONNECTED, Package(PackageKind(kind_field), (received_data + new_data)), all_bytes
+                        return ProtocolStatusCodes.SOCKET_DISCONNECTED, Package(PackageKind(kind_field), received_data), all_bytes
 
                     received_data += new_data
 
                 return ProtocolStatusCodes.ALL_GOOD, Package(PackageKind(kind_field), received_data), all_bytes
-            except socket.timeout as err:
-                return None  # a timeout shouldn't be a problem
+
+            except socket.timeout:
+                return None  # Timeout is not an error
             except socket.error as err:
-                print(f'Socket Error receive_data: {err}')
-                print(traceback.format_exc())
-                return ProtocolStatusCodes.SOCKET_CONNECTION_ERROR, Package(PackageKind(0), f"{err}".encode()), b""
+                logger.error(f'Socket Error receive_data: {err}\n{traceback.format_exc()}')
+                return ProtocolStatusCodes.SOCKET_CONNECTION_ERROR, Package(PackageKind(0), str(err).encode()), b""
             except Exception as err:
-                print(f'Socket Error receive_data: {err}')
-                print(traceback.format_exc())
-                return ProtocolStatusCodes.GENERAL_ERROR, Package(PackageKind(0), f"{err}".encode()), b""
+                logger.error(f'General Error receive_data: {err}\n{traceback.format_exc()}')
+                return ProtocolStatusCodes.GENERAL_ERROR, Package(PackageKind(0), str(err).encode()), b""
 
-        temp = receive_data_main()
+        result = receive_data_main()
 
-        if temp is not None:
-            status, package, _all_bytes = temp
-
+        if result is not None:
+            status, package, raw_bytes = result
             if package.payload != b"" and log:
-                Network.log_transmission("recv", _all_bytes, tid)
+                Network.log_transmission("recv", raw_bytes, tid)
 
-        return temp[:-1] if temp is not None else None
+        return result[:-1] if result is not None else None
