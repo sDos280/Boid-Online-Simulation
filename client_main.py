@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
         draw_fps(10, 10)
 
-        draw_text(f"Boid I Added Counter: {len(new_boids_i_added)}", 10, 30, 20, BLACK)
+        draw_text(f"Boids I Added Counter: {len(new_boids_i_added)}", 10, 30, 20, BLACK)
 
         end_drawing()
 
